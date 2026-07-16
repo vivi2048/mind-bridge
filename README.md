@@ -97,10 +97,10 @@ cp .env.example .env
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
-| `LLM_BASE_URL` | LLM API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `LLM_API_KEY` | API 密钥 | `sk-xxx` |
-| `LLM_MODEL_ID` | 模型名称 | `qwen-plus` |
-| `EMBEDDING_API_KEY` | Embedding 密钥 | `sk-xxx` |
+| `API_KEY` | LLM API 密钥 | `sk-xxx` |
+| `BASE_URL` | LLM API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `LLM_MODEL_ID` | 对话模型名称 | `qwen-plus` |
+| `EMBEDDING_MODEL_ID` | Embedding 模型名称 | `text-embedding-v3` |
 
 > 💡 Docker 环境下 `DATABASE_URL` 和 `REDIS_URL` 由 docker-compose 自动注入，无需手动配置。
 

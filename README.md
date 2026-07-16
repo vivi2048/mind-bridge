@@ -112,7 +112,7 @@ docker-compose up -d --build
 
 启动后自动执行：建表 → 导入知识库 → 创建测试用户（`test` / `test123`）
 
-应用运行在 **http://localhost:8000**，浏览器访问即可开始对话。
+应用运行在 <http://localhost:8000>，浏览器访问即可开始对话。
 
 > 💡 **开发模式**：`docker-compose up -d` 自动加载 `docker-compose.override.yml`，代码挂载 + 热重载，改完即生效。
 

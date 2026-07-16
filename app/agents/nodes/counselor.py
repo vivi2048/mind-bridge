@@ -1,7 +1,10 @@
+import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from app.agents.state import AgentState
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 llm = ChatOpenAI(
     model=settings.llm_model_id,
@@ -22,6 +25,8 @@ COUNSELOR_PROMPT = """
 
 
 async def counselor_node(state: AgentState) -> dict:
+    logger.info(f"[CounselorAgent] 开始生成专业心理咨询回复, risk_level={state.get('risk_level', 'unknown')}")
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", COUNSELOR_PROMPT),
         MessagesPlaceholder(variable_name="messages"),
@@ -33,6 +38,6 @@ async def counselor_node(state: AgentState) -> dict:
         "context": state.get("retrieved_context", "无"),
         "risk_level": state.get("risk_level", "low")
     })
-    print("[CounselorAgent] 生成专业心理咨询回复")
+    logger.info("[CounselorAgent] 完成专业心理咨询回复")
 
     return {"messages": [response]}

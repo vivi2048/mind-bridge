@@ -26,3 +26,6 @@ class AgentState(TypedDict):
 
     # 6. 用户提问
     current_user_input: str
+
+    # 7. 历史消息计数 (由 MemoryAgent 写入，供 SaveMemoryAgent 使用)
+    _history_count: int

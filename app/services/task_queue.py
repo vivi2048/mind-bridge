@@ -1,11 +1,14 @@
 import json
 import asyncio
+import logging
 from redis.asyncio import Redis
 from sqlalchemy import select
 from app.db.session import async_session_factory
 from app.models.entities import AsyncTask, TaskStatus
 from app.services.mcp_tools import MCP_TOOL_REGISTRY
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 REDIS_QUEUE_KEY = "mindbridge:task_queue"
 MAX_RETRIES = 3
@@ -29,7 +32,7 @@ class TaskQueue:
 
             # 将数据库 ID 作为消息推入队列
             await self.redis.rpush(REDIS_QUEUE_KEY, json.dumps({"task_id": task.id}))
-            print(f"[TaskQueue] 任务 {task.id} ({task_type}) 已入队")
+            logger.info(f"[TaskQueue] 任务 {task.id} ({task_type}) 已入队")
 
     async def process_task(self, task_id: int):
         """
@@ -58,7 +61,7 @@ class TaskQueue:
                 # 4. 执行成功，更新状态
                 task.status = TaskStatus.SUCCESS
                 task.error_message = None
-                print(f"[TaskQueue] 任务 {task_id} 执行成功")
+                logger.info(f"[TaskQueue] 任务 {task_id} 执行成功")
 
             except Exception as e:
                 # 5. 执行失败，处理重试或死信
@@ -67,12 +70,12 @@ class TaskQueue:
 
                 if task.retry_count >= MAX_RETRIES:
                     task.status = TaskStatus.DEAD_LETTER
-                    print(f"[TaskQueue] 任务 {task_id} 达到最大重试次数，进入死信队列！")
+                    logger.error(f"[TaskQueue] 任务 {task_id} 达到最大重试次数，进入死信队列！")
                 else:
                     task.status = TaskStatus.FAILED
                     # 重新入队
                     await self.redis.rpush(REDIS_QUEUE_KEY, json.dumps({"task_id": task.id}))
-                    print(f"[TaskQueue] 任务 {task_id} 失败 (重试 {task.retry_count}/{MAX_RETRIES})")
+                    logger.warning(f"[TaskQueue] 任务 {task_id} 失败 (重试 {task.retry_count}/{MAX_RETRIES})")
 
             await session.commit()
 
@@ -80,7 +83,7 @@ class TaskQueue:
         """
         启动后台 Worker，持续监听 Redis 队列。
         """
-        print("[Worker] 异步任务 Worker 已启动，等待任务...")
+        logger.info("[Worker] 异步任务 Worker 已启动，等待任务...")
         while True:
             # 阻塞等待，超时设为 1 秒
             message = await self.redis.blpop(REDIS_QUEUE_KEY, timeout=1)

@@ -1,7 +1,11 @@
+import logging
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import json
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # --- 1. 定义请求模型 ---
@@ -15,14 +19,13 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def chat_endpoint(request: Request, chat_req: ChatRequest):
     """
-    对话接口
+    对话接口 - 流式响应
     """
+    logger.info(f"收到聊天请求: user_id={chat_req.user_id}, session_id={chat_req.session_id}")
+    
     try:
-        # 1. 初始化图 (注意：这里应该使用单例或依赖注入，不要每次都重新初始化)
-        # 提示：你可以参考 test_graph.py 中的写法
         graph = request.app.state.graph
 
-        # 2. 构建初始状态 (State)
         initial_state = {
             "user_id": chat_req.user_id,
             "session_id": chat_req.session_id,
@@ -30,18 +33,45 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
             "risk_level": None,
             "risk_reason": None,
             "retrieved_context": None,
-            "current_user_input": chat_req.message
+            "current_user_input": chat_req.message,
+            "_history_count": 0
         }
 
-        # 3. 运行图
-        # 注意：这里应该使用 ainvoke 或 run，取决于你的 MindBridgeGraph 实现
-        final_state = await graph.run(initial_state)
+        async def generate():
+            """生成流式响应"""
+            try:
+                logger.info("开始执行 LangGraph")
+                async for event in graph.graph.astream_events(initial_state, version="v2"):
+                    kind = event.get("event")
+                    metadata = event.get("metadata", {})
+                    node_name = metadata.get("langgraph_node", "")
+                    
+                    if kind == "on_chat_model_stream" and node_name in ["companion", "counselor"]:
+                        chunk = event.get("data", {}).get("chunk")
+                        if chunk and hasattr(chunk, 'content') and chunk.content:
+                            yield f"data: {json.dumps({'type': 'token', 'content': chunk.content}, ensure_ascii=False)}\n\n"
+                    
+                    elif kind == "on_chain_end":
+                        if event.get("name") == "LangGraph":
+                            final_state = event.get("data", {}).get("output", {})
+                            logger.info(f"LangGraph 执行完成, risk_level={final_state.get('risk_level')}")
+                            yield f"data: {json.dumps({'type': 'done', 'risk_level': final_state.get('risk_level', 'unknown')}, ensure_ascii=False)}\n\n"
+                            break
 
-        # 4. 返回结果
-        return {
-            "status": "success",
-            "response": final_state["messages"][-1].content
-        }
+            except Exception as e:
+                logger.error(f"流式响应生成失败: {e}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
 
     except Exception as e:
+        logger.error(f"聊天接口异常: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

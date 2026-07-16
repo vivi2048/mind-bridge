@@ -1,8 +1,11 @@
+import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from app.agents.state import AgentState
 from app.core.config import settings
 from langchain_openai import ChatOpenAI
+
+logger = logging.getLogger(__name__)
 
 # 1. 初始化 LLM (根据你的实际配置调整)
 llm = ChatOpenAI(
@@ -32,6 +35,8 @@ async def supervisor_node(state: AgentState) -> dict:
     SupervisorAgent 节点：负责意图识别与路由。
     它读取 state['messages']，输出 state['current_intent']。
     """
+    logger.info("[SupervisorAgent] 开始意图识别")
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", SUPERVISOR_PROMPT),
         MessagesPlaceholder(variable_name="messages"),  # 注入历史对话，帮助 LLM 理解上下文
@@ -47,9 +52,10 @@ async def supervisor_node(state: AgentState) -> dict:
 
     # 安全兜底：如果 LLM 输出了非预期的值，默认降级为普通聊天
     if intent not in ["chat", "consult", "risk"]:
+        logger.warning(f"[SupervisorAgent] 未识别的意图 '{intent}'，降级为 chat")
         intent = "chat"
 
-    print(f"[SupervisorAgent] 识别到意图: {intent}")
+    logger.info(f"[SupervisorAgent] 识别到意图: {intent}")
 
     # 将识别结果写回全局状态
     return {"current_intent": intent}

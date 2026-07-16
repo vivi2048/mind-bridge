@@ -1,6 +1,9 @@
+import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 llm = ChatOpenAI(
     model=settings.llm_model_id,
@@ -18,6 +21,8 @@ COMPANION_PROMPT = """
 
 
 async def companion_node(state: dict) -> dict:
+    logger.info("[CompanionAgent] 开始生成日常陪伴回复")
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", COMPANION_PROMPT),
         MessagesPlaceholder(variable_name="messages"),
@@ -25,7 +30,7 @@ async def companion_node(state: dict) -> dict:
     chain = prompt | llm
 
     response = await chain.ainvoke({"messages": state["messages"]})
-    print("[CompanionAgent] 完成日常陪伴回复")
+    logger.info("[CompanionAgent] 完成日常陪伴回复")
 
     # 将 AI 的回复追加到全局消息列表中
     return {"messages": [response]}

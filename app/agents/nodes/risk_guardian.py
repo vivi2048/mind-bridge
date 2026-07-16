@@ -1,9 +1,12 @@
+import logging
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from app.agents.state import AgentState
 from app.core.config import settings
 from app.services.task_queue import task_queue
+
+logger = logging.getLogger(__name__)
 
 llm = ChatOpenAI(
     model=settings.llm_model_id,
@@ -21,6 +24,8 @@ RISK_PROMPT = """
 
 
 async def risk_guardian_node(state: AgentState) -> dict:
+    logger.info("[RiskGuardianAgent] 开始风险评估")
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", RISK_PROMPT),
         ("human", "用户最新消息：{last_message}\n\n参考知识：{context}"),
@@ -36,12 +41,14 @@ async def risk_guardian_node(state: AgentState) -> dict:
     risk_level = risk_level.strip().lower()
 
     if risk_level not in ["low", "medium", "high", "critical"]:
+        logger.warning(f"[RiskGuardianAgent] 未识别的风险等级 '{risk_level}'，降级为 low")
         risk_level = "low"
 
-    print(f"[RiskGuardianAgent] 评估风险等级: {risk_level}")
+    logger.info(f"[RiskGuardianAgent] 评估风险等级: {risk_level}")
 
     # 如果 risk_level 为 high 或 critical，在此处推入异步任务队列发送预警
     if risk_level in ["high", "critical"]:
+        logger.warning(f"[RiskGuardianAgent] 检测到高风险，推入预警队列")
         await task_queue.enqueue(
             task_type="send_alert",
             payload={

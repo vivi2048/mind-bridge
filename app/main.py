@@ -1,12 +1,30 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.agents.graph import MindBridgeGraph
 from app.db.session import async_engine
 from app.services.task_queue import task_queue, global_redis_client
 from app.core.config import settings
 from app.api import chat
+
+# 配置日志
+log_dir = Path(__file__).parent.parent / "logs"
+log_dir.mkdir(exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_dir / "app.log", encoding="utf-8"),
+        logging.StreamHandler()  # 同时输出到控制台
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # 用于在 lifespan 外部持有 worker 任务的引用，以便优雅关闭
 worker_task: asyncio.Task | None = None
@@ -45,6 +63,16 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# 挂载静态文件目录
+static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/")
+async def root():
+    """首页 - 返回前端页面"""
+    return FileResponse(static_dir / "index.html")
 
 
 @app.get("/health")

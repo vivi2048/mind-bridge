@@ -61,7 +61,7 @@ services:
         echo '=== 初始化完成 ==='
       "
     volumes:
-      - chroma_data:/app/data/chroma_db
+      - ./data/chroma_db:/app/data/chroma_db
 
   app:
     build: .
@@ -81,9 +81,14 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - chroma_data:/app/data/chroma_db
+      - ./data/chroma_db:/app/data/chroma_db
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mysql_data:
   redis_data:
-  chroma_data:

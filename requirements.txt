@@ -1,0 +1,37 @@
+# Web 框架
+fastapi
+uvicorn[standard]
+
+# LLM / AI 框架
+langchain-core
+langchain-openai
+langchain-chroma
+langchain-community
+langchain-text-splitters
+langgraph
+openai
+
+# 向量数据库
+chromadb
+
+# 数据库
+sqlalchemy[asyncio]
+aiomysql
+
+# Redis
+redis
+
+# 测试脚本依赖
+pymysql
+httpx
+
+# 配置
+pydantic-settings
+python-dotenv
+
+# 密码哈希
+passlib
+bcrypt==4.0.1
+
+# 文档加载（知识库导入用）
+dashscope

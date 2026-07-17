@@ -12,11 +12,11 @@ def test_mysql():
         url = make_url(settings.database_url)
         
         conn = pymysql.connect(
-            host=url.host,
-            port=url.port or 3306,
-            user=url.username,
-            password=url.password,
-            database=url.database
+            host=str(url.host) if url.host else "localhost",
+            port=int(url.port) if url.port else 3306,
+            user=str(url.username) if url.username else "root",
+            password=str(url.password) if url.password else "",
+            database=str(url.database) if url.database else "test"
         )
         with conn.cursor() as cur:
             cur.execute("SELECT VERSION()")
@@ -26,8 +26,8 @@ def test_mysql():
             print(f"MySQL 连接成功，数据库版本: {version[0]}")
         else:
             print("MySQL 连接成功，但未能获取到版本号")
-    except Exception as e:
-        print(f"MySQL 连接失败: {e}")
+    except Exception as ex:
+        print(f"MySQL 连接失败: {ex}")
 
 
 def test_redis():
@@ -45,8 +45,8 @@ def test_redis():
             print(f"Redis 连接成功，Redis 版本: {info.get('redis_version')}")
         else:
             print("Redis 连接失败: PING 未返回 True")
-    except Exception as e:
-        print(f"Redis 连接失败: {e}")
+    except Exception as ex:
+        print(f"Redis 连接失败: {ex}")
 
 
 def test_llm():
@@ -69,8 +69,8 @@ def test_llm():
         data = response.json()
         content = data["choices"][0]["message"]["content"]
         print(f"LLM API 连通成功，模型响应: {content}")
-    except Exception as e:
-        print(f"LLM API 调用失败: {e}")
+    except Exception as ex:
+        print(f"LLM API 调用失败: {ex}")
 
 
 def test_embedding():
@@ -92,8 +92,8 @@ def test_embedding():
         data = response.json()
         vector_dim = len(data["data"][0]["embedding"])
         print(f"Embedding API 连通成功，向量维度: {vector_dim}")
-    except Exception as e:
-        print(f"Embedding API 调用失败: {e}")
+    except Exception as ex:
+        print(f"Embedding API 调用失败: {ex}")
 
 
 if __name__ == "__main__":

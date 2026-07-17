@@ -3,13 +3,15 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
-# 计算项目根目录（假设 config.py 在 app/core/ 下，往上推两级即为根目录）
+# 计算项目根目录（config.py 在 app/core/ 下，往上推两级即为根目录）
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
     # 项目基础配置
     project_name: str = "MindBridge 心理测评与智能问答系统"
+    api_description: str = "基于 RAG 和异步任务队列的心理健康评估平台"
+    api_version: str = "1.0.0"
     debug: bool = False
 
     # --- 通用 API 配置 ---

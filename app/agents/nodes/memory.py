@@ -1,4 +1,5 @@
 import logging
+from typing import cast
 from langchain_core.messages import HumanMessage, AIMessage
 from sqlalchemy import select
 
@@ -42,10 +43,10 @@ async def memory_node(state: dict) -> dict:
                     continue
 
                 if msg.role == "user":
-                    history_messages.append(HumanMessage(content=msg.content, id=f"db-{msg.id}"))
+                    history_messages.append(HumanMessage(content=msg.content, id=f"db-{cast(int, msg.id)}"))
                     history_count += 1
                 elif msg.role == "assistant":
-                    history_messages.append(AIMessage(content=msg.content, id=f"db-{msg.id}"))
+                    history_messages.append(AIMessage(content=msg.content, id=f"db-{cast(int, msg.id)}"))
                     history_count += 1
     except Exception as e:
         logger.error(f"[MemoryAgent] 加载历史记忆失败: {e}", exc_info=True)
@@ -85,7 +86,7 @@ async def save_memory_node(state: dict) -> dict:
             existing = await session.get(ChatSession, session_id)
             if not existing:
                 logger.info(f"[SaveMemory] 会话 {session_id} 不存在，自动创建")
-                new_session = ChatSession(id=session_id, user_id=user_id)
+                new_session = ChatSession(id=cast(int, session_id), user_id=cast(int, user_id))
                 session.add(new_session)
                 await session.flush()  # 先落盘，确保外键可用
 
@@ -112,9 +113,9 @@ async def save_memory_node(state: dict) -> dict:
             # 保存用户消息
             if last_user_msg:
                 user_msg_obj = ChatMessage(
-                    session_id=session_id,
+                    session_id=cast(int, session_id),
                     role="user",
-                    content=last_user_msg.content,
+                    content=cast(str, last_user_msg.content),
                     intent=current_intent
                 )
                 session.add(user_msg_obj)
@@ -122,9 +123,9 @@ async def save_memory_node(state: dict) -> dict:
             # 保存 AI 消息
             if last_ai_msg:
                 ai_msg_obj = ChatMessage(
-                    session_id=session_id,
+                    session_id=cast(int, session_id),
                     role="assistant",
-                    content=last_ai_msg.content,
+                    content=cast(str, last_ai_msg.content),
                     intent=current_intent
                 )
                 session.add(ai_msg_obj)

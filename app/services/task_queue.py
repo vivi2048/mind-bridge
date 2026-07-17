@@ -63,10 +63,10 @@ class TaskQueue:
                 task.error_message = None
                 logger.info(f"[TaskQueue] 任务 {task_id} 执行成功")
 
-            except Exception as e:
+            except Exception as ex:
                 # 5. 执行失败，处理重试或死信
                 task.retry_count += 1
-                task.error_message = str(e)
+                task.error_message = str(ex)
 
                 if task.retry_count >= MAX_RETRIES:
                     task.status = TaskStatus.DEAD_LETTER

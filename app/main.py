@@ -59,8 +59,8 @@ async def lifespan(_: FastAPI):
 # 初始化 FastAPI 应用
 app = FastAPI(
     title=settings.project_name,
-    description="基于 RAG 和异步任务队列的心理健康评估平台",
-    version="1.0.0",
+    description=settings.api_description,
+    version=settings.api_version,
     lifespan=lifespan,
 )
 

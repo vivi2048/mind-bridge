@@ -1,9 +1,9 @@
-<p align="center">
-  <h2 align="center">MindBridge — 校园心理健康智能问答系统</h2>
-  <p align="center">基于 LangGraph 多智能体的 AI 心理陪伴与危机预警平台</p>
-</p>
+<div style="text-align: center;">
+  <h2 style="text-align: center;">MindBridge — 校园心理健康智能问答系统</h2>
+  <p style="text-align: center;">基于 LangGraph 多智能体的 AI 心理陪伴与危机预警平台</p>
+</div>
 
-<p align="center">
+<p style="text-align: center;">
   <img src="https://img.shields.io/badge/version-1.0.0-indigo" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="license">
   <img src="https://img.shields.io/badge/python-3.11%2B-teal" alt="python">
@@ -16,16 +16,16 @@
 
 ## ✨ 功能
 
-| | |
-|---|---|
-| **智能路由** | Supervisor 自动识别意图，分流至陪伴或咨询通道 |
-| **情绪陪伴** | 温暖友好的日常对话，缓解孤独与压力 |
-| **专业咨询** | 基于 RAG 知识库的心理学回复，覆盖 11 个主题领域 |
+|          |                               |
+|----------|-------------------------------|
+| **智能路由** | Supervisor 自动识别意图，分流至陪伴或咨询通道  |
+| **情绪陪伴** | 温暖友好的日常对话，缓解孤独与压力             |
+| **专业咨询** | 基于 RAG 知识库的心理学回复，覆盖 11 个主题领域  |
 | **风险预警** | 实时评估风险等级（低/中/高/危急），高危自动触发异步预警 |
-| **会话记忆** | MySQL 持久化对话历史，多轮上下文连续对话 |
-| **流式响应** | SSE 打字机效果，实时展示 AI 回复 |
-| **前端界面** | 开箱即用的 Web 聊天页面 |
-| **异步任务** | Redis 任务队列，支持死信重试与预警闭环 |
+| **会话记忆** | MySQL 持久化对话历史，多轮上下文连续对话       |
+| **流式响应** | SSE 打字机效果，实时展示 AI 回复          |
+| **前端界面** | 开箱即用的 Web 聊天页面                |
+| **异步任务** | Redis 任务队列，支持死信重试与预警闭环        |
 
 ## 🏗️ 架构
 
@@ -52,27 +52,29 @@
                      │       └───────┬──────────┘
                      │               ▼
                      │       ┌──────────────────┐
-                     └──────►│ 🧑‍⚕️ Counselor Node │ ← 专业回复
-                             └───────┬──────────┘
-                                     ▼
-                           ┌──────────────────┐
-                           │ 💾 Save Memory    │ → 持久化
-                           └──────────────────┘
+                     │       │ 🧑‍⚕️ Counselor Node │ ← 专业回复
+                     │       └───────┬──────────┘
+                     │               │
+                     └───────┬───────┘
+                             ▼
+                   ┌──────────────────┐
+                   │ 💾 Save Memory    │ → 持久化
+                   └──────────────────┘
 ```
 
 ## 🛠️ 技术栈
 
 **LangGraph** · **FastAPI** · **ChromaDB** · **MySQL 8.0** · **Redis 7** · **Docker Compose**
 
-| 层级 | 技术 |
-|------|------|
-| 智能体编排 | LangGraph (StateGraph + 条件路由) |
+| 层级              | 技术                                 |
+|-----------------|------------------------------------|
+| 智能体编排           | LangGraph (StateGraph + 条件路由)      |
 | LLM / Embedding | OpenAI 兼容接口 / DashScope Embeddings |
-| 向量数据库 | ChromaDB（本地持久化） |
-| 关系数据库 | MySQL 8.0 (SQLAlchemy Async) |
-| 消息队列 | Redis 7 (异步预警任务) |
-| Web 框架 | FastAPI + Uvicorn |
-| 容器化 | Docker Compose |
+| 向量数据库           | ChromaDB（本地持久化）                    |
+| 关系数据库           | MySQL 8.0 (SQLAlchemy Async)       |
+| 消息队列            | Redis 7 (异步预警任务)                   |
+| Web 框架          | FastAPI + Uvicorn                  |
+| 容器化             | Docker Compose                     |
 
 ## 🚀 快速开始
 
@@ -95,12 +97,12 @@ cp .env.example .env
 # 编辑 .env，填入 LLM API 配置
 ```
 
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `API_KEY` | LLM API 密钥 | `sk-xxx` |
-| `BASE_URL` | LLM API 地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `LLM_MODEL_ID` | 对话模型名称 | `qwen-plus` |
-| `EMBEDDING_MODEL_ID` | Embedding 模型名称 | `text-embedding-v3` |
+| 变量                   | 说明             | 示例                                                  |
+|----------------------|----------------|-----------------------------------------------------|
+| `API_KEY`            | LLM API 密钥     | `sk-xxx`                                            |
+| `BASE_URL`           | LLM API 地址     | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `LLM_MODEL_ID`       | 对话模型名称         | `qwen-plus`                                         |
+| `EMBEDDING_MODEL_ID` | Embedding 模型名称 | `text-embedding-v3`                                 |
 
 > 💡 Docker 环境下 `DATABASE_URL` 和 `REDIS_URL` 由 docker-compose 自动注入，无需手动配置。
 
@@ -136,11 +138,11 @@ data: {"type": "token", "content": "你的感受"}
 data: {"type": "done", "risk_level": "low"}
 ```
 
-| type | 说明 |
-|------|------|
-| `token` | AI 回复片段 |
-| `done` | 完成信号 + 风险等级 |
-| `error` | 错误信息 |
+| type    | 说明          |
+|---------|-------------|
+| `token` | AI 回复片段     |
+| `done`  | 完成信号 + 风险等级 |
+| `error` | 错误信息        |
 
 ## 📁 项目结构
 
@@ -152,7 +154,7 @@ mind-bridge/
 │   ├── core/              # 配置管理 + LLM 实例管理
 │   ├── db/                # 数据库连接
 │   ├── models/            # 数据模型
-│   ├── services/          # 任务队列 + MCP 工具
+│   ├── services/          # 任务队列 + 风险工具
 │   └── static/            # 前端页面
 ├── knowledge/             # 心理健康知识库（11 篇）
 ├── scripts/               # 初始化脚本

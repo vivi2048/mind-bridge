@@ -64,6 +64,10 @@
             animation: fadeIn 0.3s ease-in;
         }
 
+        .message.user {
+            justify-content: flex-end;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -88,6 +92,18 @@
             color: white;
             border-bottom-right-radius: 4px;
             box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
         }
 
         .chat-input-area {
@@ -191,10 +207,11 @@
             </div>
         </div>
 
-        <div class="chat-input-area">
+        <form class="chat-input-area" onsubmit="return false;">
+            <label for="chatInput" class="sr-only">输入消息</label>
             <input type="text" class="chat-input" id="chatInput" placeholder="输入你的消息..." />
-            <button class="send-button" id="sendButton">发送</button>
-        </div>
+            <button type="submit" class="send-button" id="sendButton">发送</button>
+        </form>
     </div>
 
     <script>

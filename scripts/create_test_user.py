@@ -4,6 +4,7 @@ import sys
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from typing import cast
 
 from app.core.config import settings
 from app.models.entities import UserAccount
@@ -50,8 +51,9 @@ async def create_test_user():
             result = await session.execute(stmt)
             existing_user = result.scalar_one_or_none()
 
-            if existing_user:
-                print(f"用户 'test' 已存在，ID: {existing_user.id}")
+            if existing_user is not None:
+                user = cast(UserAccount, existing_user)
+                print(f"用户 'test' 已存在，ID: {user.id}")
                 return
 
             session.add(test_user)

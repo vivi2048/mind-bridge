@@ -74,6 +74,6 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
             }
         )
 
-    except Exception as e:
-        logger.error(f"聊天接口异常: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as ex:
+        logger.error(f"聊天接口异常: {ex}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(ex))

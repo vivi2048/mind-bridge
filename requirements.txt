@@ -9,10 +9,6 @@ langchain-chroma
 langchain-community
 langchain-text-splitters
 langgraph
-openai
-
-# 向量数据库
-chromadb
 
 # 数据库
 sqlalchemy[asyncio]
@@ -26,12 +22,13 @@ pymysql
 httpx
 
 # 配置
+pydantic
 pydantic-settings
 python-dotenv
 
 # 密码哈希
 passlib
-bcrypt==4.0.1
+bcrypt==4.2.1
 
 # 文档加载（知识库导入用）
 dashscope

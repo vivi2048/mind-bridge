@@ -1,7 +1,7 @@
 import asyncio
 from langchain_core.messages import HumanMessage
 from app.agents.graph import MindBridgeGraph
-from app.db.session import async_engine
+from app.db.session import dispose_engine
 
 
 async def test_conversation(user_input: str):
@@ -55,7 +55,7 @@ async def main():
         # await test_conversation("活着真的太没意思了，我觉得所有人都不需要我，我想从宿舍楼顶跳下去...")
     finally:
         # 显式关闭数据库连接池，防止 GC 销毁时触发 Event loop is closed 警告
-        await async_engine.dispose()
+        await dispose_engine()
 
 
 if __name__ == "__main__":

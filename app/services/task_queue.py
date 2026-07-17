@@ -5,7 +5,7 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from app.db.session import async_session_factory
 from app.models.entities import AsyncTask, TaskStatus
-from app.services.mcp_tools import MCP_TOOL_REGISTRY
+from app.services.risk_tools import RISK_TOOL_REGISTRY
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -47,14 +47,14 @@ class TaskQueue:
                 return  # 任务不存在或已成功，跳过
 
             # 2. 更新状态为执行中
-            task.status = TaskStatus.RUNNING
-            await session.commit()
+            # task.status = TaskStatus.RUNNING
+            # await session.commit()
 
             try:
-                # 3. 查找并执行 MCP 工具
-                tool_func = MCP_TOOL_REGISTRY.get(task.task_type)
+                # 3. 查找并执行风险工具
+                tool_func = RISK_TOOL_REGISTRY.get(task.task_type)
                 if not tool_func:
-                    raise ValueError(f"未知的 MCP 工具类型: {task.task_type}")
+                    raise ValueError(f"未知的风险工具类型: {task.task_type}")
 
                 await tool_func(task.payload)
 

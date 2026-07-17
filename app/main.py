@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.agents.graph import MindBridgeGraph
-from app.db.session import async_engine
+from app.db.session import dispose_engine
 from app.services.task_queue import task_queue, global_redis_client
 from app.core.config import settings
 from app.api import chat
@@ -53,7 +53,7 @@ async def lifespan(_: FastAPI):
         except asyncio.CancelledError:
             pass  # 任务被正常取消，忽略该异常
     await global_redis_client.close()
-    await async_engine.dispose()
+    await dispose_engine()
 
 
 # 初始化 FastAPI 应用

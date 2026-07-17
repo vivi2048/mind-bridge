@@ -18,11 +18,11 @@ class AgentState(TypedDict):
     current_intent: Optional[Literal["chat", "consult", "risk"]]
 
     # 4. 风险评估信息 (由 RiskGuardianAgent 写入)
-    risk_level: str
-    risk_reason: str
+    risk_level: Optional[str]
+    risk_reason: Optional[str]
 
     # 5. 检索到的知识上下文 (由 KnowledgeAgent 写入)
-    retrieved_context: str
+    retrieved_context: Optional[str]
 
     # 6. 用户提问
     current_user_input: str

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import json
+from app.agents.state import AgentState
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -26,7 +27,8 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
     try:
         graph = request.app.state.graph
 
-        initial_state = {
+        initial_state: AgentState = {
+            "messages": [],  # 空列表，memory_node 会填充历史消息
             "user_id": chat_req.user_id,
             "session_id": chat_req.session_id,
             "current_intent": None,

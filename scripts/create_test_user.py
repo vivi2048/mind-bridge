@@ -4,8 +4,9 @@ import sys
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
 from app.core.config import settings
-from app.models.entities import UserAccount, Base
+from app.models.entities import UserAccount
 
 # 配置密码加密上下文（与登录验证时保持一致）
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

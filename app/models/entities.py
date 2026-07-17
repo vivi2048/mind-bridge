@@ -102,7 +102,7 @@ class AlertRecord(Base):
     created_at = Column(DateTime, default=datetime.now(timezone.utc), comment="创建时间")
 
 
-# --- 6. 异步任务队列记录表 (支撑 MCP 工具与死信队列) ---
+# --- 6. 异步任务队列记录表 (支撑风险工具与死信队列) ---
 class AsyncTask(Base):
     __tablename__ = "async_tasks"
 

@@ -1,9 +1,9 @@
-<div style="text-align: center;">
-  <h2 style="text-align: center;">MindBridge — 校园心理健康智能问答系统</h2>
-  <p style="text-align: center;">基于 LangGraph 多智能体的 AI 心理陪伴与危机预警平台</p>
+<div align="center">
+  <h2>MindBridge — 校园心理健康智能问答系统</h2>
+  <p>基于 LangGraph 多智能体的 AI 心理陪伴与危机预警平台</p>
 </div>
 
-<p style="text-align: center;">
+<p align="center">
   <img src="https://img.shields.io/badge/version-1.0.0-indigo" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="license">
   <img src="https://img.shields.io/badge/python-3.11%2B-teal" alt="python">

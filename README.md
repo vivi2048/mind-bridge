@@ -149,16 +149,40 @@ mind-bridge/
 ├── app/
 │   ├── agents/            # 智能体（graph / state / nodes）
 │   ├── api/               # API 路由（SSE 流式）
-│   ├── core/              # 配置管理
+│   ├── core/              # 配置管理 + LLM 实例管理
 │   ├── db/                # 数据库连接
 │   ├── models/            # 数据模型
 │   ├── services/          # 任务队列 + MCP 工具
 │   └── static/            # 前端页面
 ├── knowledge/             # 心理健康知识库（11 篇）
 ├── scripts/               # 初始化脚本
-├── tests/                 # 测试套件
+│   ├── init_db.py         # 数据库初始化
+│   ├── ingest_knowledge.py # 知识库导入（支持增量）
+│   ├── create_test_user.py # 测试用户创建
+│   └── debug/             # 调试脚本
+│       ├── test_config.py     # 连通性测试
+│       ├── test_graph.py      # 对话流程测试
+│       └── ...
 ├── data/chroma_db/        # 向量数据库（本地持久化）
 └── logs/                  # 应用日志
+```
+
+## 🛠️ 常用命令
+
+### 重建知识库
+
+知识库首次启动时自动构建，后续启动会跳过。如需强制重建：
+
+```bash
+docker exec mindbridge_app python -m scripts.ingest_knowledge --force
+```
+
+### 运行连通性测试
+
+测试 MySQL、Redis、LLM、Embedding 的连接状态：
+
+```bash
+docker exec mindbridge_app python -m scripts.debug.test_config
 ```
 
 ## 📖 知识库主题

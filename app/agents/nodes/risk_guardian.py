@@ -1,19 +1,11 @@
 import logging
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
 from app.agents.state import AgentState
-from app.core.config import settings
+from app.core.llm import llm_default
 from app.services.task_queue import task_queue
 
 logger = logging.getLogger(__name__)
-
-llm = ChatOpenAI(
-    model=settings.llm_model_id,
-    api_key=settings.api_key,
-    base_url=settings.base_url,
-    temperature=0,
-)
 
 RISK_PROMPT = """
 你是一个心理危机干预评估专家（RiskGuardianAgent）。
@@ -30,7 +22,7 @@ async def risk_guardian_node(state: AgentState) -> dict:
         ("system", RISK_PROMPT),
         ("human", "用户最新消息：{last_message}\n\n参考知识：{context}"),
     ])
-    chain = prompt | llm | StrOutputParser()
+    chain = prompt | llm_default | StrOutputParser()
 
     last_message = state["messages"][-1].content if state["messages"] else ""
 

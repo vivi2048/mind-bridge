@@ -1,17 +1,9 @@
 import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
 from app.agents.state import AgentState
-from app.core.config import settings
+from app.core.llm import llm_balanced
 
 logger = logging.getLogger(__name__)
-
-llm = ChatOpenAI(
-    model=settings.llm_model_id,
-    api_key=settings.api_key,
-    base_url=settings.base_url,
-    temperature=0.5,
-)
 
 COUNSELOR_PROMPT = """
 你是 MindBridge 校园心理平台的专业心理咨询师（CounselorAgent）。
@@ -31,7 +23,7 @@ async def counselor_node(state: AgentState) -> dict:
         ("system", COUNSELOR_PROMPT),
         MessagesPlaceholder(variable_name="messages"),
     ])
-    chain = prompt | llm
+    chain = prompt | llm_balanced
 
     response = await chain.ainvoke({
         "messages": state["messages"],

@@ -1,16 +1,8 @@
 import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
-from app.core.config import settings
+from app.core.llm import llm_creative
 
 logger = logging.getLogger(__name__)
-
-llm = ChatOpenAI(
-    model=settings.llm_model_id,
-    api_key=settings.api_key,
-    base_url=settings.base_url,
-    temperature=0.7,
-)
 
 COMPANION_PROMPT = """
 你是 MindBridge 校园心理平台的陪伴助手（CompanionAgent）。
@@ -27,7 +19,7 @@ async def companion_node(state: dict) -> dict:
         ("system", COMPANION_PROMPT),
         MessagesPlaceholder(variable_name="messages"),
     ])
-    chain = prompt | llm
+    chain = prompt | llm_creative
 
     response = await chain.ainvoke({"messages": state["messages"]})
     logger.info("[CompanionAgent] 完成日常陪伴回复")

@@ -2,18 +2,9 @@ import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from app.agents.state import AgentState
-from app.core.config import settings
-from langchain_openai import ChatOpenAI
+from app.core.llm import llm_default
 
 logger = logging.getLogger(__name__)
-
-# 1. 初始化 LLM (根据你的实际配置调整)
-llm = ChatOpenAI(
-    model=settings.llm_model_id,
-    api_key=settings.api_key,
-    base_url=settings.base_url,
-    temperature=0,
-)
 
 # 2. 定义路由 Prompt
 SUPERVISOR_PROMPT = """
@@ -42,7 +33,7 @@ async def supervisor_node(state: AgentState) -> dict:
         MessagesPlaceholder(variable_name="messages"),  # 注入历史对话，帮助 LLM 理解上下文
     ])
 
-    chain = prompt | llm | StrOutputParser()
+    chain = prompt | llm_default | StrOutputParser()
 
     # 调用 LLM 进行意图分类
     intent = await chain.ainvoke({"messages": state["messages"]})

@@ -1,24 +1,22 @@
 import pymysql
 import redis
 import httpx
+from sqlalchemy.engine import make_url
 from app.core.config import settings
 
 
 def test_mysql():
     print("\n[1/4] 正在测试 MySQL 数据库连接...")
     try:
-        # 解析 database_url，提取连接参数
-        url = settings.database_url.replace("mysql+aiomysql://", "")
-        url = url.replace("?charset=utf8mb4", "")
-        user_pass, host_port_db = url.split("@")
-        user, password = user_pass.split(":")
-        host_port, db = host_port_db.split("/")
-        host, port = host_port.split(":")
-
+        # 使用 SQLAlchemy 的 URL 解析器
+        url = make_url(settings.database_url)
+        
         conn = pymysql.connect(
-            host=host, port=int(port),
-            user=user, password=password,
-            database=db
+            host=url.host,
+            port=url.port or 3306,
+            user=url.username,
+            password=url.password,
+            database=url.database
         )
         with conn.cursor() as cur:
             cur.execute("SELECT VERSION()")
@@ -35,6 +33,10 @@ def test_mysql():
 def test_redis():
     print("\n[2/4] 正在测试 Redis 缓存连接...")
     try:
+        if not settings.redis_url:
+            print("Redis 连接失败: REDIS_URL 环境变量未设置")
+            return
+            
         r = redis.from_url(settings.redis_url, decode_responses=True)
         pong = r.ping()
         info = r.info("server")

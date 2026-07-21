@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MindBridge - 心理测评与智能问答</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -85,6 +86,108 @@
             color: #333;
             border-bottom-left-radius: 4px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            line-height: 1.6;
+        }
+
+        /* Markdown 样式 */
+        .message.bot .message-content h1,
+        .message.bot .message-content h2,
+        .message.bot .message-content h3 {
+            margin: 12px 0 6px;
+            font-weight: 600;
+        }
+
+        .message.bot .message-content h1 { font-size: 18px; }
+        .message.bot .message-content h2 { font-size: 16px; }
+        .message.bot .message-content h3 { font-size: 15px; }
+
+        .message.bot .message-content p {
+            margin: 6px 0;
+        }
+
+        .message.bot .message-content p:first-child {
+            margin-top: 0;
+        }
+
+        .message.bot .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message.bot .message-content ul,
+        .message.bot .message-content ol {
+            margin: 6px 0;
+            padding-left: 20px;
+        }
+
+        .message.bot .message-content li {
+            margin: 3px 0;
+        }
+
+        .message.bot .message-content strong {
+            color: #667eea;
+        }
+
+        .message.bot .message-content code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .message.bot .message-content pre {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .message.bot .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message.bot .message-content blockquote {
+            border-left: 3px solid #667eea;
+            margin: 8px 0;
+            padding: 4px 12px;
+            color: #666;
+            background: #f9f9ff;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .message.bot .message-content a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .message.bot .message-content a:hover {
+            text-decoration: underline;
+        }
+
+        .message.bot .message-content hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 12px 0;
+        }
+
+        .message.bot .message-content table {
+            border-collapse: collapse;
+            margin: 8px 0;
+            width: 100%;
+        }
+
+        .message.bot .message-content th,
+        .message.bot .message-content td {
+            border: 1px solid #e0e0e0;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .message.bot .message-content th {
+            background: #f5f5f5;
+            font-weight: 600;
         }
 
         .message.user .message-content {
@@ -201,9 +304,7 @@
 
         <div class="chat-messages" id="chatMessages">
             <div class="message bot">
-                <div class="message-content">
-                    你好！我是 MindBridge 心理助手。有什么我可以帮你的吗？
-                </div>
+                <div class="message-content" id="welcomeMessage"></div>
             </div>
         </div>
 
@@ -219,9 +320,14 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
 
-        // 用户 ID 和会话 ID（实际应用中应该从后端获取）
+        // 用户 ID 和会话 ID(实际应用中应该从后端获取)
         const userId = 1001;
         const sessionId = 100101;
+
+        // 渲染初始欢迎消息(Markdown)
+        document.getElementById('welcomeMessage').innerHTML = marked.parse(
+            '你好!我是 **MindBridge** 心理助手。有什么我可以帮你的吗？😊'
+        );
 
         function addMessage(content, isUser) {
             const messageDiv = document.createElement('div');
@@ -301,10 +407,10 @@
                                 
                                 if (data.type === 'token') {
                                     fullResponse += data.content;
-                                    botMessageContent.textContent = fullResponse;
+                                    botMessageContent.innerHTML = marked.parse(fullResponse);
                                     chatMessages.scrollTop = chatMessages.scrollHeight;
                                 } else if (data.type === 'done') {
-                                    console.log('对话完成，风险等级:', data.risk_level);
+                                    console.log('对话完成,风险等级:', data.risk_level);
                                 } else if (data.type === 'error') {
                                     botMessageContent.textContent = '错误: ' + data.message;
                                 }
@@ -315,14 +421,14 @@
                     }
                 }
 
-                // 如果流结束但没有收到任何 token，显示默认消息
+                // 如果流结束但没有收到任何 token,显示默认消息
                 if (!fullResponse) {
-                    botMessageContent.textContent = '抱歉，没有收到回复。';
+                    botMessageContent.textContent = '抱歉,没有收到回复.';
                 }
 
             } catch (error) {
                 hideTyping();
-                botMessageContent.textContent = '网络错误，请稍后再试。';
+                botMessageContent.textContent = '网络错误,请稍后再试.';
                 console.error('Error:', error);
             } finally {
                 sendButton.disabled = false;

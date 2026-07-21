@@ -9,6 +9,7 @@ langchain-chroma
 langchain-community
 langchain-text-splitters
 langgraph
+sentence-transformers
 
 # 数据库
 sqlalchemy[asyncio]
@@ -30,5 +31,5 @@ python-dotenv
 passlib
 bcrypt==4.2.1
 
-# 文档加载（知识库导入用）
+# 文档加载(知识库导入用)
 dashscope

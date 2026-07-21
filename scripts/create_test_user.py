@@ -9,7 +9,7 @@ from typing import cast
 from app.core.config import settings
 from app.models.entities import UserAccount
 
-# 配置密码加密上下文（与登录验证时保持一致）
+# 配置密码加密上下文(与登录验证时保持一致)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -46,21 +46,21 @@ async def create_test_user():
         )
         
         async with async_session() as session:
-            # 1. 检查用户是否已存在，避免重复创建报错
+            # 1. 检查用户是否已存在,避免重复创建报错
             stmt = select(UserAccount).where(UserAccount.username == test_user.username)
             result = await session.execute(stmt)
             existing_user = result.scalar_one_or_none()
 
             if existing_user is not None:
                 user = cast(UserAccount, existing_user)
-                print(f"用户 'test' 已存在，ID: {user.id}")
+                print(f"用户 'test' 已存在,ID: {user.id}")
                 return
 
             session.add(test_user)
             await session.commit()
             await session.refresh(test_user)
 
-            print(f"测试用户创建成功！")
+            print(f"测试用户创建成功!")
     finally:
         # 确保在事件循环关闭前正确清理
         await engine.dispose()

@@ -1,7 +1,47 @@
+# 版本控制
+.git/
+.gitignore
+
+# Python
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+
+# IDE
 .idea/
-.git/
+.vscode/
+*.swp
+*.swo
+
+# 环境变量
 .env
+
+# 数据目录(向量数据库、模型缓存、Excel台账)
 data/
+
+# 日志
+logs/
+*.log
+
+# 测试产物
+.pytest_cache/
+.coverage
+htmlcov/
+tests/reports/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Docker Compose(仅宿主机使用)
+docker-compose.override.yml
+
+# ZCode CLI 缓存
+.zcode/
+
+# 文档(镜像内不需要)
+README.md
+tests/README.md

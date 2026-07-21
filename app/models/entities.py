@@ -22,7 +22,7 @@ class RiskLevel(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
-    CRITICAL = "critical"  # 极高风险，需立即人工介入
+    CRITICAL = "critical"  # 极高风险,需立即人工介入
 
 
 class AlertStatus(str, enum.Enum):

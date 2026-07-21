@@ -4,10 +4,10 @@ from langgraph.graph.message import add_messages
 
 class AgentState(TypedDict):
     """
-    LangGraph 的全局状态定义。
-    除了对话历史，还应包含贯穿整个工作流的生命周期标识和业务状态。
+    LangGraph 的全局状态定义.
+    除了对话历史,还应包含贯穿整个工作流的生命周期标识和业务状态.
     """
-    # 1. 对话消息历史 (使用 LangGraph 内置的 add_messages reducer，自动处理消息追加)
+    # 1. 对话消息历史 (使用 LangGraph 内置的 add_messages reducer,自动处理消息追加)
     messages: Annotated[List, add_messages]
 
     # 2. 核心业务标识 (必须补充)
@@ -27,5 +27,5 @@ class AgentState(TypedDict):
     # 6. 用户提问
     current_user_input: str
 
-    # 7. 历史消息计数 (由 MemoryAgent 写入，供 SaveMemoryAgent 使用)
+    # 7. 历史消息计数 (由 MemoryAgent 写入,供 SaveMemoryAgent 使用)
     _history_count: int

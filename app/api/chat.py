@@ -28,7 +28,7 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
         graph = request.app.state.graph
 
         initial_state: AgentState = {
-            "messages": [],  # 空列表，memory_node 会填充历史消息
+            "messages": [],  # 空列表,memory_node 会填充历史消息
             "user_id": chat_req.user_id,
             "session_id": chat_req.session_id,
             "current_intent": None,
@@ -76,4 +76,4 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
 
     except Exception as ex:
         logger.error(f"聊天接口异常: {ex}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(ex))
+        raise HTTPException(status_code=500, detail="服务器内部错误,请稍后重试")

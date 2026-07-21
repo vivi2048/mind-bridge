@@ -1,5 +1,4 @@
 import logging
-from typing import cast
 from langchain_core.messages import HumanMessage, AIMessage
 from sqlalchemy import select
 
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 async def memory_node(state: dict) -> dict:
     """
-    记忆加载节点：从 MySQL 加载当前会话的历史消息。
+    记忆加载节点:从 MySQL 加载当前会话的历史消息.
     """
     session_id = state.get("session_id")
     user_id = state.get("user_id")
@@ -20,7 +19,7 @@ async def memory_node(state: dict) -> dict:
     logger.info(f"[MemoryAgent] 加载用户 {user_id} 会话 {session_id} 的历史记忆")
 
     if not session_id:
-        # 没有 session_id，只返回当前输入
+        # 没有 session_id,只返回当前输入
         return {"messages": [HumanMessage(content=current_input)]}
 
     history_messages = []
@@ -28,6 +27,18 @@ async def memory_node(state: dict) -> dict:
     
     try:
         async with async_session_factory() as session:
+            # 先验证会话归属当前用户
+            session_check = await session.execute(
+                select(ChatSession).where(
+                    ChatSession.id == session_id,
+                    ChatSession.user_id == user_id
+                )
+            )
+            if not session_check.scalar_one_or_none():
+                logger.warning(f"[MemoryAgent] 会话 {session_id} 不属于用户 {user_id},拒绝加载")
+                history_messages.append(HumanMessage(content=current_input))
+                return {"messages": history_messages, "_history_count": 0}
+
             stmt = (
                 select(ChatMessage)
                 .where(ChatMessage.session_id == session_id)
@@ -43,20 +54,23 @@ async def memory_node(state: dict) -> dict:
                     continue
 
                 if msg.role == "user":
-                    history_messages.append(HumanMessage(content=msg.content, id=f"db-{cast(int, msg.id)}"))
+                    history_messages.append(HumanMessage(content=msg.content, id=f"db-{msg.id}"))
                     history_count += 1
                 elif msg.role == "assistant":
-                    history_messages.append(AIMessage(content=msg.content, id=f"db-{cast(int, msg.id)}"))
+                    history_messages.append(AIMessage(content=msg.content, id=f"db-{msg.id}"))
                     history_count += 1
     except Exception as e:
-        logger.error(f"[MemoryAgent] 加载历史记忆失败: {e}", exc_info=True)
+        logger.error(f"[MemoryAgent] 加载历史记忆失败: session_id={session_id}, user_id={user_id}, error={e}", exc_info=True)
+        # 加载失败时仍返回当前输入,但记录警告供下游感知
+        history_messages.append(HumanMessage(content=current_input))
+        return {"messages": history_messages, "_history_count": 0}
 
     # 添加当前用户输入
     history_messages.append(HumanMessage(content=current_input))
     
-    logger.info(f"[MemoryAgent] 成功加载 {history_count} 条历史消息，加上当前输入共 {len(history_messages)} 条")
+    logger.info(f"[MemoryAgent] 成功加载 {history_count} 条历史消息,加上当前输入共 {len(history_messages)} 条")
     
-    # 记录历史消息数量，供 save_memory_node 使用（只计算从 DB 加载的数量，不含当前输入）
+    # 记录历史消息数量,供 save_memory_node 使用(只计算从 DB 加载的数量,不含当前输入)
     return {
         "messages": history_messages,
         "_history_count": history_count
@@ -65,8 +79,8 @@ async def memory_node(state: dict) -> dict:
 
 async def save_memory_node(state: dict) -> dict:
     """
-    记忆保存节点：将本轮最新的对话落盘到 MySQL。
-    如果会话不存在，则自动创建。
+    记忆保存节点:将本轮最新的对话落盘到 MySQL.
+    如果会话不存在,则自动创建.
     """
     session_id = state.get("session_id")
     user_id = state.get("user_id")
@@ -82,15 +96,25 @@ async def save_memory_node(state: dict) -> dict:
 
     try:
         async with async_session_factory() as session:
-            # 确保会话存在（自动创建）
-            existing = await session.get(ChatSession, session_id)
-            if not existing:
-                logger.info(f"[SaveMemory] 会话 {session_id} 不存在，自动创建")
-                new_session = ChatSession(id=cast(int, session_id), user_id=cast(int, user_id))
+            # 检查会话是否存在
+            existing_session = await session.execute(
+                select(ChatSession).where(ChatSession.id == session_id)
+            )
+            session_obj = existing_session.scalar_one_or_none()
+            
+            if session_obj:
+                # 会话存在,检查是否属于当前用户
+                if session_obj.user_id != user_id:
+                    logger.warning(f"[SaveMemory] 拒绝保存: 会话 {session_id} 属于用户 {session_obj.user_id},不是当前用户 {user_id}")
+                    return {}
+            else:
+                # 会话不存在,创建新会话
+                logger.info(f"[SaveMemory] 会话 {session_id} 不存在,为用户 {user_id} 创建新会话")
+                new_session = ChatSession(id=session_id, user_id=user_id)
                 session.add(new_session)
-                await session.flush()  # 先落盘，确保外键可用
+                await session.flush()
 
-            # 找到本轮新增的消息（历史消息之后的部分）
+            # 找到本轮新增的消息(历史消息之后的部分)
             new_messages = messages[history_count:] if history_count < len(messages) else []
             
             if not new_messages:
@@ -113,9 +137,9 @@ async def save_memory_node(state: dict) -> dict:
             # 保存用户消息
             if last_user_msg:
                 user_msg_obj = ChatMessage(
-                    session_id=cast(int, session_id),
+                    session_id=session_id,
                     role="user",
-                    content=cast(str, last_user_msg.content),
+                    content=last_user_msg.content,
                     intent=current_intent
                 )
                 session.add(user_msg_obj)
@@ -123,9 +147,9 @@ async def save_memory_node(state: dict) -> dict:
             # 保存 AI 消息
             if last_ai_msg:
                 ai_msg_obj = ChatMessage(
-                    session_id=cast(int, session_id),
+                    session_id=session_id,
                     role="assistant",
-                    content=cast(str, last_ai_msg.content),
+                    content=last_ai_msg.content,
                     intent=current_intent
                 )
                 session.add(ai_msg_obj)

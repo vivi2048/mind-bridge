@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     excel_path: str = "./data/excel_ledger/risk_ledger.xlsx"
     worker_poll_interval: int = 5
     max_task_attempts: int = 3
+    force_rag: bool = False  # 测试用:强制所有请求触发 RAG
 
     # --- 向量数据库 ---
     chroma_persist_dir: str = "./data/chroma_db"

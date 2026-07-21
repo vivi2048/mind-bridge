@@ -50,6 +50,93 @@ class MindBridgeTester:
         # 使用 900000+ 作为测试专用范围,避免与真实数据冲突
         return 900000 + self.session_counter
     
+    async def clean_test_data(self):
+        """清理数据库中的测试数据(session_id >= 900000)"""
+        from sqlalchemy import select, delete
+        from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+        from app.models.entities import ChatSession, ChatMessage, RiskEvent, AlertRecord, AsyncTask
+        
+        engine = create_async_engine(settings.database_url, echo=False)
+        
+        try:
+            async with AsyncSession(engine) as session:
+                # 1. 清理测试会话及其消息
+                result = await session.execute(
+                    select(ChatSession).where(ChatSession.id >= 900000)
+                )
+                test_sessions = result.scalars().all()
+                session_count = len(test_sessions)
+                
+                # 删除测试会话的消息
+                message_count = 0
+                for s in test_sessions:
+                    msg_result = await session.execute(
+                        select(ChatMessage).where(ChatMessage.session_id == s.id)
+                    )
+                    messages = msg_result.scalars().all()
+                    message_count += len(messages)
+                    
+                    await session.execute(
+                        delete(ChatMessage).where(ChatMessage.session_id == s.id)
+                    )
+                
+                # 删除测试会话本身
+                await session.execute(
+                    delete(ChatSession).where(ChatSession.id >= 900000)
+                )
+                
+                # 2. 清理测试风险事件及其关联的预警记录
+                risk_result = await session.execute(
+                    select(RiskEvent).where(RiskEvent.session_id >= 900000)
+                )
+                risk_events = risk_result.scalars().all()
+                risk_count = len(risk_events)
+                
+                # 删除关联的预警记录
+                alert_count = 0
+                for r in risk_events:
+                    alert_result = await session.execute(
+                        select(AlertRecord).where(AlertRecord.risk_event_id == r.id)
+                    )
+                    alerts = alert_result.scalars().all()
+                    alert_count += len(alerts)
+                    
+                    await session.execute(
+                        delete(AlertRecord).where(AlertRecord.risk_event_id == r.id)
+                    )
+                
+                # 删除测试风险事件
+                await session.execute(
+                    delete(RiskEvent).where(RiskEvent.session_id >= 900000)
+                )
+                
+                # 3. 清理异步任务(通过 payload 中的 session_id 过滤)
+                all_tasks_result = await session.execute(select(AsyncTask))
+                all_tasks = all_tasks_result.scalars().all()
+                task_count = 0
+                
+                for task in all_tasks:
+                    payload = task.payload or {}
+                    task_session_id = payload.get('session_id', 0)
+                    if isinstance(task_session_id, int) and task_session_id >= 900000:
+                        await session.execute(
+                            delete(AsyncTask).where(AsyncTask.id == task.id)
+                        )
+                        task_count += 1
+                
+                await session.commit()
+                
+                logger.info(f"✓ 已清理测试数据:")
+                logger.info(f"  会话: {session_count} 个")
+                logger.info(f"  消息: {message_count} 条")
+                logger.info(f"  风险事件: {risk_count} 条")
+                logger.info(f"  预警记录: {alert_count} 条")
+                logger.info(f"  异步任务: {task_count} 条")
+        except Exception as e:
+            logger.error(f"清理测试数据失败: {e}", exc_info=True)
+        finally:
+            await engine.dispose()
+    
     def parse_test_dataset(self, dataset_path: str) -> Dict:
         """
         加载 JSON 测试数据集.
@@ -348,6 +435,10 @@ class MindBridgeTester:
         logger.info("=" * 60)
         logger.info("MindBridge 自动化测试")
         logger.info("=" * 60)
+        
+        # 0. 清理数据库中的测试数据
+        logger.info("\n清理历史测试数据...")
+        await self.clean_test_data()
         
         # 1. 加载测试数据集(JSON)
         dataset = self.parse_test_dataset(dataset_path)

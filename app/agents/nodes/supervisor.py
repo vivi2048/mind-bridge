@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from app.agents.state import AgentState
 from app.core.llm import llm_default
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,57 @@ async def supervisor_node(state: AgentState) -> dict:
     """
     logger.info("[SupervisorAgent] 开始意图识别")
     
+    # 测试模式:强制所有请求触发 RAG
+    if settings.force_rag:
+        logger.info("[SupervisorAgent] 测试模式:强制路由到 consult (触发 RAG)")
+        return {"current_intent": "consult"}
+    
     current_input = state.get("current_user_input", "")
+    
+    # 规则优先:快速识别明显意图(跳过 LLM 调用,提升响应速度)
+    # 1. 风险关键词检测
+    risk_keywords = [
+        # 直接表达
+        "自杀", "自残", "不想活", "去死", "跳楼", "割腕", "服药",
+        "活不下去", "没有意义", "结束生命", "自我伤害", "想死",
+        # 隐晦表达
+        "消失", "离开这个世界", "看不到希望", "绝望", "解脱",
+        "不如死了", "活着没意思", "想解脱", "一了百了",
+        # 英文
+        "suicide", "kill myself", "end my life",
+        # 具体方法
+        "安眠药", "农药", "上吊", "割脉"
+    ]
+    if any(kw in current_input for kw in risk_keywords):
+        logger.info(f"[SupervisorAgent] 规则识别: risk (关键词匹配)")
+        return {"current_intent": "risk"}
+    
+    # 2. 心理咨询场景检测(优先于chat,避免"你好,我最近很焦虑"被误判为chat)
+    consult_keywords = [
+        # 心理学专业术语
+        "焦虑", "抑郁", "压力", "失眠", "强迫", "恐惧", "恐慌",
+        # 明确的求助表达
+        "咨询", "聊聊", "倾诉", "求助", "建议", "怎么办",
+        # 常见心理问题
+        "心情不好", "情绪低落", "睡不着", "压力大", "学不进去",
+        "注意力不集中", "记忆力下降", "烦躁", "易怒"
+    ]
+    if any(kw in current_input for kw in consult_keywords):
+        logger.info(f"[SupervisorAgent] 规则识别: consult (关键词匹配)")
+        return {"current_intent": "consult"}
+    
+    # 3. 简单聊天模式检测
+    chat_patterns = [
+        "你好", "在吗", "嗨", "早上好", "晚上好", "下午好",
+        "你是谁", "你叫什么", "谢谢", "感谢", "再见", "拜拜",
+        "嗯", "好的", "哦", "啊", "哈哈"
+    ]
+    if any(pattern in current_input for pattern in chat_patterns):
+        logger.info(f"[SupervisorAgent] 规则识别: chat (模式匹配)")
+        return {"current_intent": "chat"}
+    
+    # 3. 模型兜底:复杂问题才调用 LLM
+    logger.info(f"[SupervisorAgent] 规则未命中,调用 LLM 识别")
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", SUPERVISOR_PROMPT),

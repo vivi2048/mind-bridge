@@ -149,7 +149,7 @@ docker-compose up -d --build
 docker-compose up -d --build
 ```
 
-启动后自动执行:建表 → 导入知识库 → 创建测试用户(`test` / `test123`)
+启动后自动执行:建表 → 导入知识库
 
 应用运行在 <http://localhost:8000>,浏览器访问即可开始对话.
 
@@ -197,7 +197,6 @@ mind-bridge/
 ├── scripts/               # 初始化工具
 │   ├── init_db.py             # 数据库初始化
 │   ├── ingest_knowledge.py    # 知识库导入(按标题切分 + 去重)
-│   ├── create_test_user.py    # 测试用户创建
 │   └── download_embedding_model.py # 本地 Embedding 模型下载
 ├── tests/                 # 自动化测试
 │   ├── run_tests.py           # 测试脚本

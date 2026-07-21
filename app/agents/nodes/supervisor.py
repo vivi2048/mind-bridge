@@ -37,7 +37,7 @@ async def supervisor_node(state: AgentState) -> dict:
     current_input = state.get("current_user_input", "")
     
     # 规则优先:快速识别明显意图(跳过 LLM 调用,提升响应速度)
-    # 1. 风险关键词检测
+    # 1. 风险关键词检测 (最高优先级)
     risk_keywords = [
         # 直接表达
         "自杀", "自残", "不想活", "去死", "跳楼", "割腕", "服药",
@@ -45,24 +45,27 @@ async def supervisor_node(state: AgentState) -> dict:
         # 隐晦表达
         "消失", "离开这个世界", "看不到希望", "绝望", "解脱",
         "不如死了", "活着没意思", "想解脱", "一了百了",
-        # 英文
-        "suicide", "kill myself", "end my life",
         # 具体方法
-        "安眠药", "农药", "上吊", "割脉"
+        "安眠药", "农药", "上吊", "割脉",
+        "死了更好", "出车祸", "是个负担", "遗书", "跳下去", "快疯了", "让我去死"
     ]
     if any(kw in current_input for kw in risk_keywords):
         logger.info(f"[SupervisorAgent] 规则识别: risk (关键词匹配)")
         return {"current_intent": "risk"}
     
-    # 2. 心理咨询场景检测(优先于chat,避免"你好,我最近很焦虑"被误判为chat)
+    # 2. 心理咨询场景检测 (优先于 chat,避免混合场景误判)
     consult_keywords = [
-        # 心理学专业术语
-        "焦虑", "抑郁", "压力", "失眠", "强迫", "恐惧", "恐慌",
-        # 明确的求助表达
-        "咨询", "聊聊", "倾诉", "求助", "建议", "怎么办",
-        # 常见心理问题
-        "心情不好", "情绪低落", "睡不着", "压力大", "学不进去",
-        "注意力不集中", "记忆力下降", "烦躁", "易怒"
+        # 心理症状词
+        "焦虑", "抑郁", "压力大", "失眠", "恐惧", "恐慌", "噩梦",
+        "心情不好", "情绪低落", "睡不着", "学不进去",
+        "注意力不集中", "记忆力下降", "烦躁", "易怒",
+        # 情绪状态描述
+        "想哭", "紧张", "发脾气", "后悔", "自责", "崩溃", "逃避",
+        "没意思", "没意义", "迷茫", "孤独", "自卑", "失败",
+        # 人际关系困扰
+        "室友", "吵架", "失恋", "分手", "男朋友", "女朋友",
+        # 行为问题
+        "拖延"
     ]
     if any(kw in current_input for kw in consult_keywords):
         logger.info(f"[SupervisorAgent] 规则识别: consult (关键词匹配)")
@@ -70,9 +73,14 @@ async def supervisor_node(state: AgentState) -> dict:
     
     # 3. 简单聊天模式检测
     chat_patterns = [
+        # 问候语
         "你好", "在吗", "嗨", "早上好", "晚上好", "下午好",
         "你是谁", "你叫什么", "谢谢", "感谢", "再见", "拜拜",
-        "嗯", "好的", "哦", "啊", "哈哈"
+        # 简单回应
+        "嗯", "好的", "哦", "啊", "哈哈",
+        # 非心理类话题
+        "天气", "论文", "作业", "电影", "笑话", "好看", "计划",
+        "聊天", "日记", "帮我写", "你能帮我"
     ]
     if any(pattern in current_input for pattern in chat_patterns):
         logger.info(f"[SupervisorAgent] 规则识别: chat (模式匹配)")

@@ -27,9 +27,5 @@ pydantic
 pydantic-settings
 python-dotenv
 
-# 密码哈希
-passlib
-bcrypt==4.2.1
-
 # 文档加载(知识库导入用)
 dashscope

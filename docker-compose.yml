@@ -59,8 +59,6 @@ services:
         python -m scripts.init_db &&
         echo '=== 导入知识库 ===' &&
         python -m scripts.ingest_knowledge &&
-        echo '=== 创建测试用户 ===' &&
-        python -m scripts.create_test_user &&
         echo '=== 初始化完成 ==='
       "
     volumes:
@@ -76,6 +74,7 @@ services:
     env_file:
       - .env
     environment:
+      TZ: Asia/Shanghai
       DATABASE_URL: mysql+aiomysql://root:root@mysql:3306/mindbridge?charset=utf8mb4
       REDIS_URL: redis://redis:6379/1
       CHROMA_PERSIST_DIR: /app/data/chroma_db
@@ -90,6 +89,7 @@ services:
       - chroma_data:/app/data/chroma_db
       - ./data/embedding_models:/app/data/embedding_models
       - ./logs:/app/logs
+      - /etc/localtime:/etc/localtime:ro
     logging:
       driver: "json-file"
       options:

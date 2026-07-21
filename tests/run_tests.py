@@ -664,6 +664,34 @@ class MindBridgeTester:
             "P99": percentile(99)
         }
     
+    def _is_outlier(self, result: dict) -> bool:
+        """
+        判断测试结果是否为异常数据.
+        
+        异常数据标准:
+        1. 测试失败 (success=False)
+        2. 响应时间 > 20秒（API延迟波动）
+        3. 首字延迟 > 10秒（异常情况）
+        """
+        if not result.get('success'):
+            return True
+        
+        try:
+            total_time = float(result.get('total_time', '0s').rstrip('s'))
+            first_token = float(result.get('first_token_latency', '0s').rstrip('s'))
+        except (ValueError, AttributeError):
+            return True
+        
+        # 响应时间超过 20 秒视为异常
+        if total_time > 20:
+            return True
+        
+        # 首字延迟超过 10 秒视为异常
+        if first_token > 10:
+            return True
+        
+        return False
+    
     def generate_summary(self):
         """生成测试统计摘要（同时输出到日志和文件）"""
         lines = []
@@ -683,14 +711,28 @@ class MindBridgeTester:
             logger.warning("\n没有测试结果,无法生成统计摘要")
             return
         
+        # 过滤异常数据
+        valid_results = [r for r in self.results if not self._is_outlier(r)]
+        outlier_count = len(self.results) - len(valid_results)
+        
         log_and_collect(f"\n总测试数: {total}")
         log_and_collect(f"成功: {success}")
         log_and_collect(f"失败: {total - success}")
         log_and_collect(f"成功率: {success/total*100:.1f}%")
+        log_and_collect(f"\n有效数据: {len(valid_results)} 条")
+        log_and_collect(f"异常数据: {outlier_count} 条（已从统计中排除）")
         
-        # 性能统计
-        latencies = [float(r['first_token_latency'].rstrip('s')) for r in self.results if r.get('success')]
-        times = [float(r['total_time'].rstrip('s')) for r in self.results if r.get('success')]
+        if outlier_count > 0:
+            outliers = [r for r in self.results if self._is_outlier(r)]
+            log_and_collect(f"异常数据列表:")
+            for r in outliers[:5]:  # 最多显示 5 条
+                log_and_collect(f"  - {r.get('id')}: {r.get('total_time', 'N/A')} (失败: {r.get('error', 'N/A')})")
+            if outlier_count > 5:
+                log_and_collect(f"  ... 等共 {outlier_count} 条")
+        
+        # 性能统计（仅使用有效数据）
+        latencies = [float(r['first_token_latency'].rstrip('s')) for r in valid_results]
+        times = [float(r['total_time'].rstrip('s')) for r in valid_results]
         
         if latencies:
             latency_percentiles = self._calculate_percentiles(latencies)
@@ -714,10 +756,10 @@ class MindBridgeTester:
             log_and_collect(f"  P95: {time_percentiles['P95']:.2f}s")
             log_and_collect(f"  P99: {time_percentiles['P99']:.2f}s")
         
-        # Token 消耗统计
-        input_tokens_list = [r.get('input_tokens', 0) for r in self.results if r.get('success')]
-        output_tokens_list = [r.get('output_tokens', 0) for r in self.results if r.get('success')]
-        total_tokens_list = [r.get('total_tokens', 0) for r in self.results if r.get('success')]
+        # Token 消耗统计（仅使用有效数据）
+        input_tokens_list = [r.get('input_tokens', 0) for r in valid_results]
+        output_tokens_list = [r.get('output_tokens', 0) for r in valid_results]
+        total_tokens_list = [r.get('total_tokens', 0) for r in valid_results]
         
         if total_tokens_list and any(t > 0 for t in total_tokens_list):
             log_and_collect(f"\nToken 消耗:")
@@ -725,9 +767,9 @@ class MindBridgeTester:
             log_and_collect(f"  输出 tokens: {sum(output_tokens_list)} (平均: {sum(output_tokens_list)/len(output_tokens_list):.0f})")
             log_and_collect(f"  总计 tokens: {sum(total_tokens_list)} (平均: {sum(total_tokens_list)/len(total_tokens_list):.0f})")
         
-        # 质量统计
-        factual_scores = [r['factual_accuracy'] for r in self.results if r.get('success')]
-        quality_scores = [r['quality_score'] for r in self.results if r.get('success') and r['quality_score'].isdigit()]
+        # 质量统计（仅使用有效数据）
+        factual_scores = [r['factual_accuracy'] for r in valid_results]
+        quality_scores = [r['quality_score'] for r in valid_results if r['quality_score'].isdigit()]
         
         if factual_scores:
             correct = factual_scores.count('正确')
@@ -739,8 +781,8 @@ class MindBridgeTester:
             log_and_collect(f"\n回答质量:")
             log_and_collect(f"  平均分: {avg_quality:.1f}/5")
         
-        # 安全合规统计(仅危机识别类)
-        crisis_tests = [r for r in self.results if '危机' in r.get('category', '')]
+        # 安全合规统计(仅危机识别类，且仅使用有效数据)
+        crisis_tests = [r for r in valid_results if '危机' in r.get('category', '')]
         if crisis_tests:
             safety_pass = sum(1 for r in crisis_tests if r.get('safety_compliance') == '通过')
             log_and_collect(f"\n安全合规性(危机识别类):")

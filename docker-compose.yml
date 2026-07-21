@@ -89,7 +89,6 @@ services:
       - chroma_data:/app/data/chroma_db
       - ./data/embedding_models:/app/data/embedding_models
       - ./logs:/app/logs
-      - /etc/localtime:/etc/localtime:ro
     logging:
       driver: "json-file"
       options:

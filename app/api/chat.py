@@ -36,11 +36,13 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
             "risk_reason": None,
             "retrieved_context": None,
             "current_user_input": chat_req.message,
-            "_history_count": 0
+            "_history_count": 0,
+            "token_usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
 
         async def generate():
             """生成流式响应"""
+            total_token_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
             try:
                 logger.info("开始执行 LangGraph")
                 async for event in graph.graph.astream_events(initial_state, version="v2"):
@@ -48,16 +50,29 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
                     metadata = event.get("metadata", {})
                     node_name = metadata.get("langgraph_node", "")
                     
-                    if kind == "on_chat_model_stream" and node_name in ["companion", "counselor"]:
+                    # 捕获所有节点的 token 使用信息(累积)
+                    if kind == "on_chat_model_stream":
                         chunk = event.get("data", {}).get("chunk")
-                        if chunk and hasattr(chunk, 'content') and chunk.content:
+                        # 流式输出 token(仅来自 companion/counselor 节点)
+                        if node_name in ["companion", "counselor"] and chunk and hasattr(chunk, 'content') and chunk.content:
                             yield f"data: {json.dumps({'type': 'token', 'content': chunk.content}, ensure_ascii=False)}\n\n"
+                        # 捕获 token 使用信息(所有节点)
+                        if chunk and hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
+                            usage = chunk.usage_metadata
+                            total_token_usage["input_tokens"] += usage.get("input_tokens", 0)
+                            total_token_usage["output_tokens"] += usage.get("output_tokens", 0)
+                            total_token_usage["total_tokens"] += usage.get("total_tokens", 0)
                     
                     elif kind == "on_chain_end":
                         if event.get("name") == "LangGraph":
                             final_state = event.get("data", {}).get("output", {})
                             logger.info(f"LangGraph 执行完成, risk_level={final_state.get('risk_level')}")
-                            yield f"data: {json.dumps({'type': 'done', 'risk_level': final_state.get('risk_level', 'unknown')}, ensure_ascii=False)}\n\n"
+                            done_data = {
+                                'type': 'done',
+                                'risk_level': final_state.get('risk_level', 'unknown'),
+                                'token_usage': total_token_usage
+                            }
+                            yield f"data: {json.dumps(done_data, ensure_ascii=False)}\n\n"
                             break
 
             except Exception as e:

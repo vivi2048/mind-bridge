@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated, List, Literal, Optional
+from typing import TypedDict, Annotated, List, Literal, Optional, Dict
 
 from langgraph.graph.message import add_messages
 
@@ -29,3 +29,6 @@ class AgentState(TypedDict):
 
     # 7. 历史消息计数 (由 MemoryAgent 写入,供 SaveMemoryAgent 使用)
     _history_count: int
+
+    # 8. Token 使用统计 (累积所有 LLM 调用的 token 消耗)
+    token_usage: Optional[Dict[str, int]]

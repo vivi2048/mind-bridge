@@ -13,13 +13,14 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict
 import httpx
+from tqdm import tqdm
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 
-setup_logging()
+setup_logging(console_output=False)  # 测试模式:日志只写入文件,不输出到控制台
 logger = logging.getLogger(__name__)
 
 
@@ -293,97 +294,126 @@ class MindBridgeTester:
         self.output_path = output_path
         self._init_csv_report()
         
-        # 3. 运行单轮测试(每个使用独立session)
+        # 3. 运行单轮测试(并行执行,每个使用独立session)
         logger.info("\n" + "=" * 60)
-        logger.info("运行单轮测试")
+        logger.info("运行单轮测试(并行模式)")
         logger.info("=" * 60)
         
-        for i, test_case in enumerate(single_turn_tests, 1):
-            logger.info(f"\n进度: {i}/{len(single_turn_tests)}")
-            try:
-                result = await self.run_single_test(test_case)
-            except Exception as e:
-                logger.error(f"  ✗ 测试异常: {e}")
-                result = {**test_case, 'session_id': 0, 'success': False, 'error': str(e),
-                          'first_token_latency': 0, 'total_time': 0, 'token_count': 0,
-                          'factual_accuracy': 'N/A', 'safety_compliance': 'N/A',
-                          'quality_score': 'N/A', 'rag_hit_rate': 'N/A'}
-            self.results.append(result)
-            self._append_csv_row(result)
-            await asyncio.sleep(1)
+        # 使用信号量控制并发数,避免API过载
+        # 注意:每个测试内部会发起多个LLM调用(supervisor/memory/knowledge/counselor等)
+        # 并发数3比较合适,既能加速又不会过载
+        concurrency = 3
+        semaphore = asyncio.Semaphore(concurrency)
+        single_turn_pbar = tqdm(total=len(single_turn_tests), desc="单轮测试", unit="条",
+                                 bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]')
         
-        # 4. 运行多轮测试(同一场景使用相同session)
-        logger.info("\n" + "=" * 60)
-        logger.info("运行多轮测试")
-        logger.info("=" * 60)
-        
-        for scene in multi_turn_scenes:
-            scene_id = scene["id"]
-            scene_name = scene.get("scene", scene_id)
-            turns = scene["turns"]
-            
-            # 为整个场景分配一个 session_id
-            scene_session_id = self.get_unique_session_id()
-            logger.info(f"\n场景 {scene_id}({scene_name}) (session: {scene_session_id})")
-            
-            for turn_idx, turn in enumerate(turns, 1):
-                turn_id = f"{scene_id}-{turn_idx}"
-                logger.info(f"  轮次 {turn_idx}/{len(turns)} [{turn_id}]")
-                
-                # 使用场景级别的 session_id
-                chat_result = await self.send_chat_request(
-                    turn['question'],
-                    scene_session_id
-                )
-                
-                if not chat_result['success']:
-                    result = {
-                        'id': turn_id,
-                        'category': scene_name,
-                        'question': turn['question'],
-                        'expected_points': turn.get('expected_points', ''),
-                        'eval_dimension': turn.get('eval_dimension', ''),
-                        'difficulty': '',
-                        'session_id': scene_session_id,
-                        'success': False,
-                        'error': chat_result['error'],
-                        'first_token_latency': 0,
-                        'total_time': 0,
-                        'token_count': 0,
-                        'factual_accuracy': 'N/A',
-                        'safety_compliance': 'N/A',
-                        'quality_score': 'N/A',
-                        'rag_hit_rate': 'N/A'
-                    }
-                else:
-                    # 评估响应质量
-                    eval_result = await self.evaluate_response(
-                        turn['question'],
-                        chat_result['response'],
-                        turn.get('expected_points', ''),
-                        scene_name
-                    )
-                    
-                    result = {
-                        'id': turn_id,
-                        'category': scene_name,
-                        'question': turn['question'],
-                        'expected_points': turn.get('expected_points', ''),
-                        'eval_dimension': turn.get('eval_dimension', ''),
-                        'difficulty': '',
-                        'session_id': scene_session_id,
-                        'success': True,
-                        'response_preview': chat_result['response'][:100] + '...',
-                        'first_token_latency': f"{chat_result['first_token_latency']:.2f}s",
-                        'total_time': f"{chat_result['total_time']:.2f}s",
-                        'token_count': chat_result['token_count'],
-                        **eval_result
-                    }
-                
+        async def run_single_with_semaphore(test_case):
+            async with semaphore:
+                try:
+                    result = await self.run_single_test(test_case)
+                except Exception as e:
+                    logger.error(f"  ✗ 测试异常: {e}")
+                    result = {**test_case, 'session_id': 0, 'success': False, 'error': str(e),
+                              'first_token_latency': 0, 'total_time': 0, 'token_count': 0,
+                              'factual_accuracy': 'N/A', 'safety_compliance': 'N/A',
+                              'quality_score': 'N/A', 'rag_hit_rate': 'N/A'}
                 self.results.append(result)
                 self._append_csv_row(result)
-                logger.info(f"    ✓ {turn['question'][:20]}...")
-                await asyncio.sleep(1)  # 轮次间短暂延迟
+                single_turn_pbar.update(1)
+                single_turn_pbar.set_postfix_str(test_case['question'][:20])
+                return result
+        
+        # 并行执行所有单轮测试
+        await asyncio.gather(*[run_single_with_semaphore(tc) for tc in single_turn_tests])
+        single_turn_pbar.close()
+        
+        # 4. 运行多轮测试(场景间并行,场景内顺序执行)
+        logger.info("\n" + "=" * 60)
+        logger.info("运行多轮测试(场景并行模式)")
+        logger.info("=" * 60)
+        
+        # 统计多轮测试总数
+        total_multi_turn = sum(len(scene["turns"]) for scene in multi_turn_scenes)
+        multi_turn_pbar = tqdm(total=total_multi_turn, desc="多轮测试", unit="轮",
+                                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]')
+        
+        # 使用信号量控制场景并发数
+        # 每个场景内有多轮对话,但场景间可以并行
+        # 3个场景并行比较合适,既能加速又不会过载
+        scene_semaphore = asyncio.Semaphore(3)
+        
+        async def run_scene(scene):
+            async with scene_semaphore:
+                scene_id = scene["id"]
+                scene_name = scene.get("scene", scene_id)
+                turns = scene["turns"]
+                
+                # 为整个场景分配一个 session_id
+                scene_session_id = self.get_unique_session_id()
+                multi_turn_pbar.set_description(f"多轮-{scene_name[:8]}")
+                
+                for turn_idx, turn in enumerate(turns, 1):
+                    turn_id = f"{scene_id}-{turn_idx}"
+                    multi_turn_pbar.set_postfix_str(turn['question'][:20])
+                    
+                    # 使用场景级别的 session_id
+                    chat_result = await self.send_chat_request(
+                        turn['question'],
+                        scene_session_id
+                    )
+                    
+                    if not chat_result['success']:
+                        result = {
+                            'id': turn_id,
+                            'category': scene_name,
+                            'question': turn['question'],
+                            'expected_points': turn.get('expected_points', ''),
+                            'eval_dimension': turn.get('eval_dimension', ''),
+                            'difficulty': '',
+                            'session_id': scene_session_id,
+                            'success': False,
+                            'error': chat_result['error'],
+                            'first_token_latency': 0,
+                            'total_time': 0,
+                            'token_count': 0,
+                            'factual_accuracy': 'N/A',
+                            'safety_compliance': 'N/A',
+                            'quality_score': 'N/A',
+                            'rag_hit_rate': 'N/A'
+                        }
+                    else:
+                        # 评估响应质量
+                        eval_result = await self.evaluate_response(
+                            turn['question'],
+                            chat_result['response'],
+                            turn.get('expected_points', ''),
+                            scene_name
+                        )
+                        
+                        result = {
+                            'id': turn_id,
+                            'category': scene_name,
+                            'question': turn['question'],
+                            'expected_points': turn.get('expected_points', ''),
+                            'eval_dimension': turn.get('eval_dimension', ''),
+                            'difficulty': '',
+                            'session_id': scene_session_id,
+                            'success': True,
+                            'response_preview': chat_result['response'][:100] + '...',
+                            'first_token_latency': f"{chat_result['first_token_latency']:.2f}s",
+                            'total_time': f"{chat_result['total_time']:.2f}s",
+                            'token_count': chat_result['token_count'],
+                            **eval_result
+                        }
+                    
+                    self.results.append(result)
+                    self._append_csv_row(result)
+                    multi_turn_pbar.update(1)
+                    await asyncio.sleep(1)  # 轮次间短暂延迟
+        
+        # 并行执行所有场景
+        await asyncio.gather(*[run_scene(scene) for scene in multi_turn_scenes])
+        multi_turn_pbar.close()
         
         # 生成统计摘要
         self.generate_summary()

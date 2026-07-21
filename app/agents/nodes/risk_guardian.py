@@ -10,9 +10,14 @@ logger = logging.getLogger(__name__)
 RISK_PROMPT = """
 你是一个心理危机干预评估专家(RiskGuardianAgent).
 请根据用户的对话内容和提供的上下文,评估当前的风险等级.
-输出格式要求:
-第一行输出风险等级: low, medium, high, 或 critical
-第二行输出风险评估理由(一句话概括)
+
+输出格式要求(严格遵守):
+第一行: 只输出风险等级单词(low/medium/high/critical),不要包含任何其他文字
+第二行: 风险评估理由(一句话概括)
+
+示例:
+low
+用户表达的是常见的考试焦虑,未出现危机信号.
 """
 
 
@@ -33,8 +38,21 @@ async def risk_guardian_node(state: AgentState) -> dict:
             "last_message": last_message,
             "context": state.get("retrieved_context", "")
         })
+        # logger.info(f"[RiskGuardianAgent] LLM 原始输出:\n{result}")
+        
+        # 解析第一行（风险等级）
         lines = result.strip().split("\n", 1)
-        risk_level = lines[0].strip().lower()
+        first_line = lines[0].strip().lower()
+        
+        # 提取风险等级值（处理 "风险等级: low" 或 "risk level: low" 等格式）
+        risk_level = first_line
+        if ':' in first_line:
+            # 从 "xxx: value" 格式中提取 value（英文冒号）
+            risk_level = first_line.split(':', 1)[1].strip()
+        elif ':' in first_line:
+            # 从 "xxx：value" 格式中提取 value（中文冒号）
+            risk_level = first_line.split(':', 1)[1].strip()
+        
         risk_reason = lines[1].strip() if len(lines) > 1 else ""
     except Exception as e:
         logger.error(f"[RiskGuardianAgent] 风险评估失败: {e}", exc_info=True)

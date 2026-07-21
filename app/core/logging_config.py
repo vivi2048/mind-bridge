@@ -13,9 +13,13 @@ FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 _initialized = False
 
 
-def setup_logging():
+def setup_logging(console_output=True):
     """
-    初始化日志:同时写入 logs/app.log 和控制台.
+    初始化日志:写入 logs/app.log,可选是否输出到控制台.
+    
+    Args:
+        console_output: 是否输出到控制台,默认为 True.
+                       测试脚本应设置为 False,避免干扰进度条显示.
     多次调用安全,只会初始化一次.
     """
     global _initialized
@@ -23,11 +27,13 @@ def setup_logging():
         return
     _initialized = True
 
+    handlers = [logging.FileHandler(LOG_DIR / "app.log", encoding="utf-8")]
+    
+    if console_output:
+        handlers.append(logging.StreamHandler())
+
     logging.basicConfig(
         level=logging.INFO,
         format=FORMAT,
-        handlers=[
-            logging.FileHandler(LOG_DIR / "app.log", encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
+        handlers=handlers,
     )

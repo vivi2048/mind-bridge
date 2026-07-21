@@ -35,7 +35,7 @@ async def memory_node(state: dict) -> dict:
                 )
             )
             if not session_check.scalar_one_or_none():
-                logger.warning(f"[MemoryAgent] 会话 {session_id} 不属于用户 {user_id},拒绝加载")
+                logger.info(f"[MemoryAgent] 会话 {session_id} 不属于用户 {user_id},从新会话开始")
                 history_messages.append(HumanMessage(content=current_input))
                 return {"messages": history_messages, "_history_count": 0}
 

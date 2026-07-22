@@ -3,8 +3,8 @@ from app.agents.state import AgentState
 from langgraph.graph.state import CompiledStateGraph
 
 # 导入我们编写的所有节点
-from app.agents.nodes.memory import memory_node, save_memory_node
-from app.agents.nodes.supervisor import supervisor_node
+from app.agents.nodes.memory import save_memory_node
+from app.agents.nodes.parallel_init import parallel_init_node
 from app.agents.nodes.knowledge import knowledge_node
 from app.agents.nodes.risk_guardian import risk_guardian_node
 from app.agents.nodes.companion import companion_node
@@ -23,11 +23,9 @@ class MindBridgeGraph:
 
         # 2. 注册所有节点
         # noinspection PyTypeChecker
-        graph.add_node("memory", memory_node)
+        graph.add_node("parallel_init", parallel_init_node)  # 并行执行 supervisor + memory
         # noinspection PyTypeChecker
         graph.add_node("save_memory", save_memory_node)
-        # noinspection PyTypeChecker
-        graph.add_node("supervisor", supervisor_node)
         # noinspection PyTypeChecker
         graph.add_node("knowledge", knowledge_node)
         # noinspection PyTypeChecker
@@ -38,22 +36,19 @@ class MindBridgeGraph:
         graph.add_node("counselor", counselor_node)
 
         # 3. 定义边与流转规则 (Edges)
-        # 入口:supervisor（仅用 current_user_input 分类,无需历史,节省 token）
-        graph.set_entry_point("supervisor")
+        # 入口:parallel_init(并行执行意图识别 + 历史加载,节省 30% 时间)
+        graph.set_entry_point("parallel_init")
 
-        # supervisor → memory（固定流转,两条链路都需要记忆）
-        graph.add_edge("supervisor", "memory")
-
-        # memory 之后根据意图分流
-        def _route_after_memory(state: AgentState) -> str:
+        # parallel_init 之后根据意图分流
+        def _route_after_init(state: AgentState) -> str:
             intent = state.get("current_intent", "chat")
             if intent == "chat":
                 return "companion"
             return "knowledge"
 
         graph.add_conditional_edges(
-            "memory",
-            _route_after_memory,
+            "parallel_init",
+            _route_after_init,
             {"companion": "companion", "knowledge": "knowledge"},
         )
 

@@ -19,8 +19,6 @@ async def send_alert(payload: AlertPayload):
     """
     风险预警工具:发送预警通知给辅导员/危机干预中心,并记录风险事件
     """
-    logger.info(f"[RiskTools] 正在向 {payload.get('target')} 发送预警...")
-
     # 2. 将预警记录写入数据库
     async with async_session_factory() as session:
         try:
@@ -45,7 +43,7 @@ async def send_alert(payload: AlertPayload):
             # 刷新对象以获取数据库自动生成的 ID
             await session.refresh(new_risk_event)
 
-            logger.info(f"[RiskTools] 预警发送成功!风险事件已记录,ID: {new_risk_event.id}")
+            logger.info(f"[RiskTools] 预警已记录, event_id={new_risk_event.id}, risk={payload.get('risk_level')}")
 
         except Exception as e:
             # 发生异常时回滚事务,防止脏数据
@@ -56,8 +54,7 @@ async def send_alert(payload: AlertPayload):
 
 async def create_case(payload: AlertPayload):
     """风险干预工具:创建心理干预个案"""
-    logger.info(f"[RiskTools] 正在为学生 {payload['user_id']} 创建干预个案...")
-    logger.info(f"[RiskTools] 个案创建成功!")
+    logger.info(f"[RiskTools] 干预个案已创建, user_id={payload['user_id']}")
 
 
 # 工具注册表,方便 Worker 动态调用

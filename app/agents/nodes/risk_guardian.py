@@ -4,6 +4,7 @@ from langchain_core.output_parsers import StrOutputParser
 from app.agents.state import AgentState
 from app.core.llm import llm_default
 from app.services.task_queue import task_queue
+from app.core.rate_limiter import llm_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,6 @@ low
 
 
 async def risk_guardian_node(state: AgentState) -> dict:
-    logger.info("[RiskGuardianAgent] 开始风险评估")
-    
     prompt = ChatPromptTemplate.from_messages([
         ("system", RISK_PROMPT),
         ("human", "用户最新消息:{last_message}\n\n参考知识:{context}"),
@@ -34,6 +33,8 @@ async def risk_guardian_node(state: AgentState) -> dict:
     last_message = state.get("current_user_input", "")
 
     try:
+        # 使用限流器防止触发上游 API 速率限制
+        await llm_rate_limiter.acquire()
         result = await chain.ainvoke({
             "last_message": last_message,
             "context": state.get("retrieved_context", "")
@@ -63,7 +64,7 @@ async def risk_guardian_node(state: AgentState) -> dict:
         logger.warning(f"[RiskGuardianAgent] 未识别的风险等级 '{risk_level}',降级为 low")
         risk_level = "low"
 
-    logger.info(f"[RiskGuardianAgent] 评估风险等级: {risk_level}, 原因: {risk_reason}")
+    logger.info(f"[RiskGuardianAgent] 风险等级: {risk_level}")
 
     # 如果 risk_level 为 high 或 critical,推入异步任务队列发送预警
     if risk_level in ["high", "critical"]:

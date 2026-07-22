@@ -17,6 +17,7 @@ def create_llm(temperature: float = 0) -> ChatOpenAI:
         api_key=settings.api_key,
         base_url=settings.base_url,
         temperature=temperature,
+        request_timeout=60,  # 60秒超时,防止慢请求无限挂起占用资源
         extra_body={"enable_thinking": False},
     )
 

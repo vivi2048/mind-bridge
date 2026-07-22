@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
@@ -35,7 +33,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # 初始化容器:自动建表、导入知识库、创建测试用户,完成后退出
+  # 初始化容器:自动建表、导入知识库,完成后退出
   init:
     build: .
     container_name: mindbridge_init
@@ -74,7 +72,6 @@ services:
     env_file:
       - .env
     environment:
-      TZ: Asia/Shanghai
       DATABASE_URL: mysql+aiomysql://root:root@mysql:3306/mindbridge?charset=utf8mb4
       REDIS_URL: redis://redis:6379/1
       CHROMA_PERSIST_DIR: /app/data/chroma_db

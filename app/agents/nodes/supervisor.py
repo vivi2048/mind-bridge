@@ -4,6 +4,7 @@ from langchain_core.output_parsers import StrOutputParser
 from app.agents.state import AgentState
 from app.core.llm import llm_default
 from app.core.config import settings
+from app.core.rate_limiter import rate_limit_retry
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,9 @@ async def supervisor_node(state: AgentState) -> dict:
     SupervisorAgent 节点:负责意图识别与路由.
     仅根据当前用户输入分类,不发送完整历史消息以节省 token.
     """
-    logger.info("[SupervisorAgent] 开始意图识别")
-    
     # 测试模式:强制所有请求触发 RAG
     if settings.force_rag:
-        logger.info("[SupervisorAgent] 测试模式:强制路由到 consult (触发 RAG)")
+        logger.debug("[SupervisorAgent] 测试模式:强制路由到 consult")
         return {"current_intent": "consult"}
     
     current_input = state.get("current_user_input", "")
@@ -50,7 +49,7 @@ async def supervisor_node(state: AgentState) -> dict:
         "死了更好", "出车祸", "是个负担", "遗书", "跳下去", "快疯了", "让我去死"
     ]
     if any(kw in current_input for kw in risk_keywords):
-        logger.info(f"[SupervisorAgent] 规则识别: risk (关键词匹配)")
+        logger.info("[SupervisorAgent] 识别到意图: risk (规则匹配)")
         return {"current_intent": "risk"}
     
     # 2. 心理咨询场景检测 (优先于 chat,避免混合场景误判)
@@ -68,7 +67,7 @@ async def supervisor_node(state: AgentState) -> dict:
         "拖延"
     ]
     if any(kw in current_input for kw in consult_keywords):
-        logger.info(f"[SupervisorAgent] 规则识别: consult (关键词匹配)")
+        logger.info("[SupervisorAgent] 识别到意图: consult (规则匹配)")
         return {"current_intent": "consult"}
     
     # 3. 简单聊天模式检测
@@ -83,11 +82,11 @@ async def supervisor_node(state: AgentState) -> dict:
         "聊天", "日记", "帮我写", "你能帮我"
     ]
     if any(pattern in current_input for pattern in chat_patterns):
-        logger.info(f"[SupervisorAgent] 规则识别: chat (模式匹配)")
+        logger.info("[SupervisorAgent] 识别到意图: chat (规则匹配)")
         return {"current_intent": "chat"}
     
     # 3. 模型兜底:复杂问题才调用 LLM
-    logger.info(f"[SupervisorAgent] 规则未命中,调用 LLM 识别")
+    logger.debug("[SupervisorAgent] 规则未命中,调用 LLM 识别")
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", SUPERVISOR_PROMPT),
@@ -98,6 +97,9 @@ async def supervisor_node(state: AgentState) -> dict:
 
     try:
         # 调用 LLM 进行意图分类（仅传当前输入,不传历史）
+        # 使用限流器防止触发上游 API 速率限制
+        from app.core.rate_limiter import llm_rate_limiter
+        await llm_rate_limiter.acquire()
         intent = await chain.ainvoke({"input": current_input})
         intent = intent.strip().lower()
     except Exception as e:

@@ -22,8 +22,7 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
     """
     对话接口 - 流式响应
     """
-    logger.info(f"收到聊天请求: user_id={chat_req.user_id}, session_id={chat_req.session_id}")
-    
+    logger.debug(f"用户输入: {chat_req.message}")
     try:
         graph = request.app.state.graph
 
@@ -43,8 +42,8 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
         async def generate():
             """生成流式响应"""
             total_token_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            response_text = []  # 累积 AI 回复内容
             try:
-                logger.info("开始执行 LangGraph")
                 async for event in graph.graph.astream_events(initial_state, version="v2"):
                     kind = event.get("event")
                     metadata = event.get("metadata", {})
@@ -55,6 +54,7 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
                         chunk = event.get("data", {}).get("chunk")
                         # 流式输出 token(仅来自 companion/counselor 节点)
                         if node_name in ["companion", "counselor"] and chunk and hasattr(chunk, 'content') and chunk.content:
+                            response_text.append(chunk.content)
                             yield f"data: {json.dumps({'type': 'token', 'content': chunk.content}, ensure_ascii=False)}\n\n"
                         # 捕获 token 使用信息(所有节点)
                         if chunk and hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
@@ -66,7 +66,8 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
                     elif kind == "on_chain_end":
                         if event.get("name") == "LangGraph":
                             final_state = event.get("data", {}).get("output", {})
-                            logger.info(f"LangGraph 执行完成, risk_level={final_state.get('risk_level')}")
+                            logger.info(f"请求完成: user={chat_req.user_id}, session={chat_req.session_id}, risk={final_state.get('risk_level')}")
+                            logger.debug(f"AI 回复: {''.join(response_text)}")
                             done_data = {
                                 'type': 'done',
                                 'risk_level': final_state.get('risk_level', 'unknown'),

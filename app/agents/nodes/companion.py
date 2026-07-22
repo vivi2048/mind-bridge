@@ -2,6 +2,7 @@ import logging
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from app.core.llm import llm_creative
+from app.core.rate_limiter import llm_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +15,6 @@ COMPANION_PROMPT = """
 
 
 async def companion_node(state: dict) -> dict:
-    logger.info("[CompanionAgent] 开始生成日常陪伴回复")
-    
     prompt = ChatPromptTemplate.from_messages([
         ("system", COMPANION_PROMPT),
         MessagesPlaceholder(variable_name="messages"),
@@ -23,8 +22,10 @@ async def companion_node(state: dict) -> dict:
     chain = prompt | llm_creative
 
     try:
+        # 使用限流器防止触发上游 API 速率限制
+        await llm_rate_limiter.acquire()
         response = await chain.ainvoke({"messages": state["messages"]})
-        logger.info("[CompanionAgent] 完成日常陪伴回复")
+        logger.debug("[CompanionAgent] 陪伴回复完成")
         return {"messages": [response]}
     except Exception as e:
         logger.error(f"[CompanionAgent] LLM 调用失败: {e}", exc_info=True)

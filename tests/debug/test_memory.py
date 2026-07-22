@@ -1,23 +1,16 @@
 import asyncio
-import logging
 from sqlalchemy import select
 from app.db.session import async_session_factory
-from app.models.entities import ChatMessage  # 确保路径正确
+from app.models.entities import ChatMessage
 from langchain_core.messages import HumanMessage, AIMessage
-from app.core.logging_config import setup_logging
-
-setup_logging()
-logger = logging.getLogger(__name__)
 
 
 async def test_memory_node():
-    # 替换为你实际存在的 session_id
     test_session_id = 100101
 
-    logger.info(f"正在测试 session_id={test_session_id} 的历史消息加载...")
+    print(f"测试 session_id={test_session_id} 的历史消息加载...")
 
     async with async_session_factory() as session:
-        # 【推荐写法】使用 select(ChatMessage) 代替 __table__.select()
         stmt = (
             select(ChatMessage)
             .where(ChatMessage.session_id == test_session_id)
@@ -26,35 +19,29 @@ async def test_memory_node():
         result = await session.execute(stmt)
         db_messages = result.scalars().all()
 
-    logger.info(db_messages)
-    logger.info(f"原始查询结果类型: {type(db_messages)}")
-    logger.info(f"列表长度: {len(db_messages)}")
+    print(f"查询到 {len(db_messages)} 条消息")
 
     history_messages = []
-    for i, msg in enumerate(db_messages):
-        logger.info(f"--- 第 {i + 1} 条数据 ---")
-        logger.info(f"  数据类型: {type(msg)}")
-        logger.info(f"  数据内容: {msg}")
-
+    for i, msg in enumerate(db_messages, 1):
         # 防御性检查:如果真的是 int,就跳过并警告
         if isinstance(msg, int):
-            logger.warning("发现了 int 类型的数据,可能是主键 ID!")
+            print(f"  [{i}] ⚠ int 类型,跳过")
             continue
 
-        # 尝试访问 role 属性
         try:
-            logger.info(f"  角色(role): {msg.role}")
-            logger.info(f"  内容(content): {msg.content[:50]}...")
+            role = msg.role
+            content = msg.content[:50]
+            print(f"  [{i}] {role}: {content}...")
 
-            if msg.role == "user":
+            if role == "user":
                 history_messages.append(HumanMessage(content=msg.content, id=f"db-{msg.id}"))
-            elif msg.role == "assistant":
+            elif role == "assistant":
                 history_messages.append(AIMessage(content=msg.content, id=f"db-{msg.id}"))
 
         except AttributeError as e:
-            logger.error(f"报错: {e}")
+            print(f"  [{i}] ✗ 属性错误: {e}")
 
-    logger.info(f"\n最终转换后的 LangChain 消息数量: {len(history_messages)}")
+    print(f"\n转换后 LangChain 消息: {len(history_messages)} 条")
     return history_messages
 
 

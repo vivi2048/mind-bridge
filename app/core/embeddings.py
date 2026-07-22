@@ -46,7 +46,7 @@ def _create_local_embeddings() -> Embeddings:
         os.environ["SENTENCE_TRANSFORMERS_HOME"] = settings.embedding_cache_dir
 
     model_path = settings.embedding_model_id
-    logger.info(f"[Embeddings] 加载本地模型: {model_path}")
+    logger.debug(f"[Embeddings] 加载本地模型: {model_path}")
 
     return HuggingFaceEmbeddings(
         model_name=model_path,
@@ -59,7 +59,7 @@ def _create_api_embeddings() -> Embeddings:
     """通过 OpenAI 兼容 API 调用远程 Embedding 服务"""
     from langchain_openai import OpenAIEmbeddings
 
-    logger.info(
+    logger.debug(
         f"[Embeddings] 使用 API 模式: "
         f"model={settings.embedding_model_id}, "
         f"base_url={settings.embedding_base_url}"

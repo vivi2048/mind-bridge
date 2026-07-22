@@ -16,8 +16,6 @@ async def memory_node(state: dict) -> dict:
     user_id = state.get("user_id")
     current_input = state.get("current_user_input")
 
-    logger.info(f"[MemoryAgent] 加载用户 {user_id} 会话 {session_id} 的历史记忆")
-
     if not session_id:
         # 没有 session_id,只返回当前输入
         return {"messages": [HumanMessage(content=current_input)]}
@@ -35,7 +33,7 @@ async def memory_node(state: dict) -> dict:
                 )
             )
             if not session_check.scalar_one_or_none():
-                logger.info(f"[MemoryAgent] 会话 {session_id} 不属于用户 {user_id},从新会话开始")
+                logger.debug(f"[MemoryAgent] 会话 {session_id} 不属于用户 {user_id},从新会话开始")
                 history_messages.append(HumanMessage(content=current_input))
                 return {"messages": history_messages, "_history_count": 0}
 
@@ -68,7 +66,7 @@ async def memory_node(state: dict) -> dict:
     # 添加当前用户输入
     history_messages.append(HumanMessage(content=current_input))
     
-    logger.info(f"[MemoryAgent] 成功加载 {history_count} 条历史消息,加上当前输入共 {len(history_messages)} 条")
+    logger.info(f"[MemoryAgent] 加载 {history_count} 条历史消息")
     
     # 记录历史消息数量,供 save_memory_node 使用(只计算从 DB 加载的数量,不含当前输入)
     return {
@@ -87,8 +85,6 @@ async def save_memory_node(state: dict) -> dict:
     messages = state.get("messages", [])
     history_count = state.get("_history_count", 0)
     current_intent = state.get("current_intent")
-
-    logger.info(f"[SaveMemory] 开始保存: session_id={session_id}, 总消息数={len(messages)}, history_count={history_count}")
 
     if not session_id or not messages:
         logger.warning("[SaveMemory] 跳过保存: session_id 或 messages 为空")
@@ -109,7 +105,7 @@ async def save_memory_node(state: dict) -> dict:
                     return {}
             else:
                 # 会话不存在,创建新会话
-                logger.info(f"[SaveMemory] 会话 {session_id} 不存在,为用户 {user_id} 创建新会话")
+                logger.debug(f"[SaveMemory] 会话 {session_id} 不存在,为用户 {user_id} 创建新会话")
                 new_session = ChatSession(id=session_id, user_id=user_id)
                 session.add(new_session)
                 await session.flush()
@@ -118,7 +114,7 @@ async def save_memory_node(state: dict) -> dict:
             new_messages = messages[history_count:] if history_count < len(messages) else []
             
             if not new_messages:
-                logger.info("[SaveMemory] 没有新消息需要保存")
+                logger.debug("[SaveMemory] 没有新消息需要保存")
                 return {}
 
             # 提取本轮的用户消息和 AI 回复
@@ -157,7 +153,7 @@ async def save_memory_node(state: dict) -> dict:
             await session.commit()
             
             saved_count = (1 if last_user_msg else 0) + (1 if last_ai_msg else 0)
-            logger.info(f"[SaveMemory] 会话 {session_id} 保存了 {saved_count} 条消息")
+            logger.debug(f"[SaveMemory] 会话 {session_id} 保存了 {saved_count} 条消息")
 
     except Exception as e:
         logger.error(f"[SaveMemory] 保存对话失败: {e}", exc_info=True)

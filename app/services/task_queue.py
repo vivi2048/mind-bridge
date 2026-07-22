@@ -61,7 +61,7 @@ class TaskQueue:
                 # 4. 执行成功,更新状态
                 task.status = TaskStatus.SUCCESS
                 task.error_message = None
-                logger.info(f"[TaskQueue] 任务 {task_id} 执行成功")
+                logger.debug(f"[TaskQueue] 任务 {task_id} 执行成功")
 
             except Exception as ex:
                 # 5. 执行失败,处理重试或死信
@@ -83,7 +83,7 @@ class TaskQueue:
         """
         启动后台 Worker,持续监听 Redis 队列.
         """
-        logger.info("[Worker] 异步任务 Worker 已启动,等待任务...")
+        logger.debug("[Worker] 异步任务 Worker 已启动")
         while True:
             # 阻塞等待,超时设为 1 秒
             message = await self.redis.blpop(REDIS_QUEUE_KEY, timeout=1)

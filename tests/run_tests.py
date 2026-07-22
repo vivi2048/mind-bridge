@@ -126,12 +126,7 @@ class MindBridgeTester:
                 
                 await session.commit()
                 
-                logger.info(f"✓ 已清理测试数据:")
-                logger.info(f"  会话: {session_count} 个")
-                logger.info(f"  消息: {message_count} 条")
-                logger.info(f"  风险事件: {risk_count} 条")
-                logger.info(f"  预警记录: {alert_count} 条")
-                logger.info(f"  异步任务: {task_count} 条")
+                logger.info(f"✓ 已清理测试数据: 会话{session_count}个, 消息{message_count}条, 风险事件{risk_count}条, 预警{alert_count}条, 任务{task_count}条")
         except Exception as e:
             logger.error(f"清理测试数据失败: {e}", exc_info=True)
         finally:
@@ -377,7 +372,7 @@ class MindBridgeTester:
         # 为每个测试生成唯一的 session_id,避免上下文污染
         session_id = self.get_unique_session_id()
         
-        logger.info(f"\n[{test_case['id']}] 测试: {test_case['question'][:30]}... (session: {session_id})")
+        print(f"\n[{test_case['id']}] {test_case['question'][:40]}... (session: {session_id})")
         
         # 1. 发送请求并收集指标
         chat_result = await self.send_chat_request(test_case['question'], session_id)
@@ -423,21 +418,18 @@ class MindBridgeTester:
             **eval_result
         }
         
-        logger.info(f"  ✓ 首字延迟: {result['first_token_latency']}")
-        logger.info(f"  ✓ 总耗时: {result['total_time']}")
-        logger.info(f"  ✓ 事实准确性: {result['factual_accuracy']}")
-        logger.info(f"  ✓ 回答质量: {result['quality_score']}")
+        print(f"  → 首字:{result['first_token_latency']} | 耗时:{result['total_time']} | 准确性:{result['factual_accuracy']} | 质量:{result['quality_score']}")
         
         return result
     
     async def run_all_tests(self, dataset_path: str, output_path: str):
         """运行所有测试并生成报告"""
-        logger.info("=" * 60)
-        logger.info("MindBridge 自动化测试")
-        logger.info("=" * 60)
+        print("=" * 60)
+        print("MindBridge 自动化测试")
+        print("=" * 60)
         
         # 0. 清理数据库中的测试数据
-        logger.info("\n清理历史测试数据...")
+        print("\n清理历史测试数据...")
         await self.clean_test_data()
         
         # 1. 加载测试数据集(JSON)
@@ -446,18 +438,17 @@ class MindBridgeTester:
         multi_turn_scenes = dataset["multi_turn"]
         multi_turn_total = sum(len(s["turns"]) for s in multi_turn_scenes)
         
-        logger.info(f"\n加载了 {len(single_turn_tests) + multi_turn_total} 个测试用例")
-        logger.info(f"单轮测试: {len(single_turn_tests)} 条")
-        logger.info(f"多轮测试: {len(multi_turn_scenes)} 个场景,共 {multi_turn_total} 条")
+        print(f"\n加载了 {len(single_turn_tests) + multi_turn_total} 个测试用例")
+        print(f"  单轮: {len(single_turn_tests)} 条 | 多轮: {len(multi_turn_scenes)} 场景 {multi_turn_total} 条")
         
         # 初始化 CSV 文件(写入表头)
         self.output_path = output_path
         self._init_csv_report()
         
         # 3. 运行单轮测试(并行执行,每个使用独立session)
-        logger.info("\n" + "=" * 60)
-        logger.info("运行单轮测试(并行模式)")
-        logger.info("=" * 60)
+        print(f"\n{'=' * 60}")
+        print("运行单轮测试(并行模式)")
+        print("=" * 60)
         
         # 使用信号量控制并发数,避免API过载
         # 注意:每个测试内部会发起多个LLM调用(supervisor/memory/knowledge/counselor等)
@@ -493,9 +484,9 @@ class MindBridgeTester:
             single_turn_pbar.close()
         
         # 4. 运行多轮测试(场景间并行,场景内顺序执行)
-        logger.info("\n" + "=" * 60)
-        logger.info("运行多轮测试(场景并行模式)")
-        logger.info("=" * 60)
+        print(f"\n{'=' * 60}")
+        print("运行多轮测试(场景并行模式)")
+        print("=" * 60)
         
         # 统计多轮测试总数
         total_multi_turn = sum(len(scene["turns"]) for scene in multi_turn_scenes)
@@ -628,7 +619,7 @@ class MindBridgeTester:
         with open(self.output_path, 'w', encoding='utf-8-sig', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self._get_fieldnames())
             writer.writeheader()
-        logger.info(f"\n✓ 报告文件已创建: {self.output_path}(逐条写入模式)")
+        print(f"\n✓ 报告文件已创建: {self.output_path}(逐条写入模式)")
     
     async def _append_csv_row(self, result: dict):
         """逐条追加一行到 CSV（带锁，防止并发写入冲突）"""
@@ -640,7 +631,7 @@ class MindBridgeTester:
     
     def generate_csv_report(self, output_path: str):
         """生成 CSV 格式的测试报告(兼容旧调用)"""
-        logger.info(f"\n✓ 测试报告已保存至: {output_path}(共 {len(self.results)} 条)")
+        print(f"\n✓ 测试报告已保存至: {output_path}(共 {len(self.results)} 条)")
     
     def _calculate_percentiles(self, data: list) -> Dict[str, float]:
         """计算百分位数 (P50, P90, P95, P99)"""
@@ -670,8 +661,8 @@ class MindBridgeTester:
         
         异常数据标准:
         1. 测试失败 (success=False)
-        2. 响应时间 > 20秒（API延迟波动）
-        3. 首字延迟 > 10秒（异常情况）
+        2. 响应时间 > 60秒（API延迟波动,正常LLM调用需15-25s）
+        3. 首字延迟 > 20秒（异常情况,正常首字需5-15s）
         """
         if not result.get('success'):
             return True
@@ -682,22 +673,22 @@ class MindBridgeTester:
         except (ValueError, AttributeError):
             return True
         
-        # 响应时间超过 20 秒视为异常
-        if total_time > 20:
+        # 响应时间超过 60 秒视为异常
+        if total_time > 60:
             return True
         
-        # 首字延迟超过 10 秒视为异常
-        if first_token > 10:
+        # 首字延迟超过 20 秒视为异常
+        if first_token > 20:
             return True
         
         return False
     
     def generate_summary(self):
-        """生成测试统计摘要（同时输出到日志和文件）"""
+        """生成测试统计摘要（同时输出到控制台和文件）"""
         lines = []
         
         def log_and_collect(msg):
-            logger.info(msg)
+            print(msg)
             lines.append(msg)
         
         log_and_collect("\n" + "=" * 60)
@@ -724,11 +715,9 @@ class MindBridgeTester:
         
         if outlier_count > 0:
             outliers = [r for r in self.results if self._is_outlier(r)]
-            log_and_collect(f"异常数据列表:")
-            for r in outliers[:5]:  # 最多显示 5 条
-                log_and_collect(f"  - {r.get('id')}: {r.get('total_time', 'N/A')} (失败: {r.get('error', 'N/A')})")
-            if outlier_count > 5:
-                log_and_collect(f"  ... 等共 {outlier_count} 条")
+            outlier_ids = ", ".join(r.get('id', '?') for r in outliers[:5])
+            extra = f" ...等共{outlier_count}条" if outlier_count > 5 else ""
+            log_and_collect(f"异常数据: {outlier_count} 条（{outlier_ids}{extra}）")
         
         # 性能统计（仅使用有效数据）
         latencies = [float(r['first_token_latency'].rstrip('s')) for r in valid_results]
@@ -736,25 +725,11 @@ class MindBridgeTester:
         
         if latencies:
             latency_percentiles = self._calculate_percentiles(latencies)
-            log_and_collect(f"\n首字延迟:")
-            log_and_collect(f"  平均: {sum(latencies)/len(latencies):.2f}s")
-            log_and_collect(f"  最小: {min(latencies):.2f}s")
-            log_and_collect(f"  最大: {max(latencies):.2f}s")
-            log_and_collect(f"  P50: {latency_percentiles['P50']:.2f}s")
-            log_and_collect(f"  P90: {latency_percentiles['P90']:.2f}s")
-            log_and_collect(f"  P95: {latency_percentiles['P95']:.2f}s")
-            log_and_collect(f"  P99: {latency_percentiles['P99']:.2f}s")
+            log_and_collect(f"\n首字延迟: 平均{sum(latencies)/len(latencies):.2f}s | P50:{latency_percentiles['P50']:.2f}s | P90:{latency_percentiles['P90']:.2f}s | P95:{latency_percentiles['P95']:.2f}s")
         
         if times:
             time_percentiles = self._calculate_percentiles(times)
-            log_and_collect(f"\n响应时间:")
-            log_and_collect(f"  平均: {sum(times)/len(times):.2f}s")
-            log_and_collect(f"  最小: {min(times):.2f}s")
-            log_and_collect(f"  最大: {max(times):.2f}s")
-            log_and_collect(f"  P50: {time_percentiles['P50']:.2f}s")
-            log_and_collect(f"  P90: {time_percentiles['P90']:.2f}s")
-            log_and_collect(f"  P95: {time_percentiles['P95']:.2f}s")
-            log_and_collect(f"  P99: {time_percentiles['P99']:.2f}s")
+            log_and_collect(f"响应时间: 平均{sum(times)/len(times):.2f}s | P50:{time_percentiles['P50']:.2f}s | P90:{time_percentiles['P90']:.2f}s | P95:{time_percentiles['P95']:.2f}s")
         
         # Token 消耗统计（仅使用有效数据）
         input_tokens_list = [r.get('input_tokens', 0) for r in valid_results]
@@ -762,10 +737,7 @@ class MindBridgeTester:
         total_tokens_list = [r.get('total_tokens', 0) for r in valid_results]
         
         if total_tokens_list and any(t > 0 for t in total_tokens_list):
-            log_and_collect(f"\nToken 消耗:")
-            log_and_collect(f"  输入 tokens: {sum(input_tokens_list)} (平均: {sum(input_tokens_list)/len(input_tokens_list):.0f})")
-            log_and_collect(f"  输出 tokens: {sum(output_tokens_list)} (平均: {sum(output_tokens_list)/len(output_tokens_list):.0f})")
-            log_and_collect(f"  总计 tokens: {sum(total_tokens_list)} (平均: {sum(total_tokens_list)/len(total_tokens_list):.0f})")
+            log_and_collect(f"\nToken 消耗: 输入{sum(input_tokens_list)}(均{sum(input_tokens_list)/len(input_tokens_list):.0f}) | 输出{sum(output_tokens_list)}(均{sum(output_tokens_list)/len(output_tokens_list):.0f}) | 总计{sum(total_tokens_list)}")
         
         # 质量统计（仅使用有效数据）
         factual_scores = [r['factual_accuracy'] for r in valid_results]
@@ -773,26 +745,23 @@ class MindBridgeTester:
         
         if factual_scores:
             correct = factual_scores.count('正确')
-            log_and_collect(f"\n事实准确性:")
-            log_and_collect(f"  正确: {correct}/{len(factual_scores)} ({correct/len(factual_scores)*100:.1f}%)")
+            log_and_collect(f"\n事实准确性: {correct}/{len(factual_scores)} ({correct/len(factual_scores)*100:.1f}%)")
         
         if quality_scores:
             avg_quality = sum(int(s) for s in quality_scores) / len(quality_scores)
-            log_and_collect(f"\n回答质量:")
-            log_and_collect(f"  平均分: {avg_quality:.1f}/5")
+            log_and_collect(f"回答质量: {avg_quality:.1f}/5")
         
         # 安全合规统计(仅危机识别类，且仅使用有效数据)
         crisis_tests = [r for r in valid_results if '危机' in r.get('category', '')]
         if crisis_tests:
             safety_pass = sum(1 for r in crisis_tests if r.get('safety_compliance') == '通过')
-            log_and_collect(f"\n安全合规性(危机识别类):")
-            log_and_collect(f"  通过: {safety_pass}/{len(crisis_tests)} ({safety_pass/len(crisis_tests)*100:.1f}%)")
+            log_and_collect(f"安全合规: {safety_pass}/{len(crisis_tests)} ({safety_pass/len(crisis_tests)*100:.1f}%)")
         
         # 写入摘要文件
         summary_path = self.output_path.replace('.csv', '_summary.txt')
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
-        logger.info(f"\n✓ 统计摘要已保存至: {summary_path}")
+        print(f"\n✓ 统计摘要已保存至: {summary_path}")
 
 
 async def main():

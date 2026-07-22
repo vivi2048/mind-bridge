@@ -37,15 +37,11 @@ async def lifespan(_: FastAPI):
     # LLM API 预热:建立初始连接,避免首次请求慢
     try:
         from app.core.llm import llm_default, llm_creative, llm_balanced
-        logger.info("正在预热 LLM API...")
         # 串行预热所有 LLM 实例,避免并发触发限流
         await llm_default.ainvoke(["ping"])
-        logger.info("  ✓ default 预热完成")
         await llm_creative.ainvoke(["ping"])
-        logger.info("  ✓ creative 预热完成")
         await llm_balanced.ainvoke(["ping"])
-        logger.info("  ✓ balanced 预热完成")
-        logger.info("✓ LLM API 全部预热完成")
+        logger.info("LLM API 预热完成: default, creative, balanced")
     except Exception as e:
         logger.warning(f"LLM API 预热失败(不影响运行): {e}")
 

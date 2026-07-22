@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import shutil
 import sys
 from pathlib import Path
 from langchain_core.documents import Document
@@ -50,20 +51,18 @@ def ingest_documents(force: bool = False):
     
     if force:
         print("强制重建知识库,清除旧数据...")
-        # 通过 Chroma API 删除 collection,避免直接删目录导致的文件锁问题
-        try:
-            from langchain_chroma import Chroma
-            from app.core.embeddings import create_embeddings
-            embeddings = create_embeddings()
-            old_db = Chroma(
-                persist_directory=str(CHROMA_PERSIST_DIR),
-                embedding_function=embeddings,
-                collection_name=settings.chroma_collection_name,
-            )
-            old_db.delete_collection()
-            print(f"  已清除旧 collection: {settings.chroma_collection_name}")
-        except Exception as e:
-            print(f"  清除旧数据时出错: {e}")
+        # 直接删除整个持久化目录,避免 delete_collection() 遗留孤儿索引文件
+        if CHROMA_PERSIST_DIR.exists():
+            try:
+                shutil.rmtree(CHROMA_PERSIST_DIR)
+                print(f"  已删除旧数据库目录: {CHROMA_PERSIST_DIR}")
+            except PermissionError:
+                print(f"  错误: 无法删除 {CHROMA_PERSIST_DIR},可能被其他进程占用.")
+                print("  请关闭占用该目录的进程后重试,或手动删除该目录.")
+                return
+            except OSError as e:
+                print(f"  错误: 删除目录失败: {e}")
+                return
     
     if not KNOWLEDGE_DIR.exists():
         print(f"知识库目录不存在: {KNOWLEDGE_DIR}")

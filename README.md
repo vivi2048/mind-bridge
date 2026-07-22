@@ -4,13 +4,13 @@
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.1.0-indigo" alt="version">
+  <img src="https://img.shields.io/badge/version-1.2.0-indigo" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="license">
   <img src="https://img.shields.io/badge/python-3.11%2B-teal" alt="python">
   <img src="https://img.shields.io/badge/docker-ready-green" alt="docker">
 </p>
 
-通过 Supervisor → Companion / Counselor 多智能体路由,为学生提供情绪陪伴、专业心理咨询与实时风险预警.支持 RAG 知识检索、流式对话与会话记忆.
+通过 Supervisor → Companion / Counselor 多智能体路由,为学生提供情绪陪伴、专业心理咨询与实时风险预警.支持 RAG 知识检索(22 篇专业文档)、流式对话与会话记忆.经过高并发压测验证,支持 ~30 人同时在线.
 
 ---
 
@@ -20,7 +20,7 @@
 |----------|-------------------------------|
 | **智能路由** | Supervisor 自动识别意图,分流至陪伴或咨询通道  |
 | **情绪陪伴** | 温暖友好的日常对话,缓解孤独与压力             |
-| **专业咨询** | 基于 RAG 知识库的心理学回复,覆盖 11 个主题领域  |
+| **专业咨询** | 基于 RAG 知识库的心理学回复,覆盖 17 个主题领域  |
 | **风险预警** | 实时评估风险等级(低/中/高/危急),高危自动触发异步预警 |
 | **会话记忆** | MySQL 持久化对话历史,多轮上下文连续对话       |
 | **流式响应** | SSE 打字机效果,实时展示 AI 回复          |
@@ -34,35 +34,35 @@
                         │  用户输入    │
                         └──────┬──────┘
                                ▼
-                    ┌────────────────────┐
-                    │ 👁️ Supervisor Node  │ ← 意图分类
-                    └────────┬───────────┘
-                             ▼
-                     ┌───────────────────┐
-                     │  🧠 Memory Node   │ ← 加载历史对话
-                     └────────┬──────────┘
-                              │
-                  ┌───────────┴───────────┐
-                  │                       │
-              chat  │                 consult / risk
-                  ▼                       ▼
-        ┌──────────────┐       ┌─────────────────┐
-        │ 🫂 Companion  │       │ 📚 Knowledge Node│ ← RAG 检索
-        └──────┬───────┘       └───────┬─────────┘
-               │                       ▼
-               │             ┌──────────────────┐
-               │             │ 🛡️ Risk Guardian  │ ← 风险评估
-               │             └───────┬──────────┘
-               │                     ▼
-               │             ┌──────────────────┐
-               │             │ 🧑‍⚕️ Counselor Node │ ← 专业回复
-               │             └───────┬──────────┘
-               │                     │
-               └─────────┬───────────┘
-                         ▼
-               ┌──────────────────┐
-               │ 💾 Save Memory    │ → 持久化
-               └──────────────────┘
+                ┌──────────────────────────────┐
+                │  ⚡ Parallel Init (并行执行)   │
+                │  ┌──────────┐ ┌───────────┐  │
+                │  │Supervisor│ │  Memory   │  │
+                │  │ 意图分类  │ │ 加载历史   │  │
+                │  └──────────┘ └───────────┘  │
+                └──────────────┬───────────────┘
+                               │
+                   ┌───────────┴───────────┐
+                   │                       │
+               chat  │                 consult / risk
+                   ▼                       ▼
+         ┌──────────────┐       ┌─────────────────┐
+         │ 🫂 Companion  │       │ 📚 Knowledge Node│ ← RAG 检索(异步)
+         └──────┬───────┘       └───────┬─────────┘
+                │                       ▼
+                │             ┌──────────────────┐
+                │             │ 🛡️ Risk Guardian  │ ← 风险评估
+                │             └───────┬──────────┘
+                │                     ▼
+                │             ┌──────────────────┐
+                │             │ 🧑‍⚕️ Counselor Node │ ← 专业回复
+                │             └───────┬──────────┘
+                │                     │
+                └─────────┬───────────┘
+                          ▼
+                ┌──────────────────┐
+                │ 💾 Save Memory    │ → 持久化
+                └──────────────────┘
 ```
 
 ## 🛠️ 技术栈
@@ -77,7 +77,31 @@
 | 关系数据库           | MySQL 8.0 (SQLAlchemy Async)       |
 | 消息队列            | Redis 7 (异步预警任务)                   |
 | Web 框架          | FastAPI + Uvicorn                  |
-| 容器化             | Docker Compose                     |
+| 容器化             | Docker Compose(多 Worker 模式)         |
+
+## ⚡ 性能优化
+
+| 优化项 | 措施 | 效果 |
+|---|---|---|
+| 并行初始化 | Supervisor + Memory 并行执行 | 响应时间减少 ~30% |
+| 向量检索异步化 | ChromaDB 搜索移至线程池 | 不阻塞事件循环,并发吞吐提升 |
+| DB 连接池扩容 | pool_size=20 + max_overflow=30 | 支持 50 并发连接 |
+| LLM 超时保护 | request_timeout=60s | 防止慢请求无限挂起 |
+| 日志异步化 | QueueHandler + QueueListener | 日志写入不阻塞主线程 |
+| API 限流保护 | 令牌桶限流(80 次/min) + 429 重试 | 防止上游 API 过载 |
+| 多 Worker | Uvicorn 4 Workers | CPU 密集操作并行化 |
+| 意图规则匹配 | 关键词优先,LLM 兜底 | ~60% 请求跳过 LLM 调用 |
+
+**压测数据(50 并发):**
+
+| 指标 | 值 |
+|---|---|
+| 成功率 | 100% |
+| RPS | 1.2 |
+| 首字延迟 P50 | ~19s |
+| 系统容量 | ~30 人同时在线 / DAU ~200-500 |
+
+> 当前瓶颈为 LLM API 限流(150 次/min),应用层已无瓶颈.
 
 ## 🚀 快速开始
 
@@ -141,7 +165,7 @@ docker-compose up -d --build
 
 </details>
 
-> 💡 Docker 环境下 `DATABASE_URL` 和 `REDIS_URL` 由 docker-compose 自动注入,无需手动配置.
+> 💡 Docker 环境下 `DATABASE_URL` 和 `REDIS_URL` 由 docker-compose 自动注入,无需手动配置.主机运行测试脚本时需在 `.env` 中配置(参见 `.env.example`).
 
 ### 3. 一键启动
 
@@ -153,7 +177,7 @@ docker-compose up -d --build
 
 应用运行在 <http://localhost:8000>,浏览器访问即可开始对话.
 
-> 💡 **开发模式**:`docker-compose up -d` 自动加载 `docker-compose.override.yml`,代码挂载 + 热重载,改完即生效.
+> 💡 **开发模式**:`docker-compose up -d` 自动加载 `docker-compose.override.yml`,代码挂载 + 4 Worker 并行.改代码后需 `docker-compose restart app` 生效.
 
 ## 📖 API
 
@@ -187,20 +211,24 @@ data: {"type": "done", "risk_level": "low"}
 mind-bridge/
 ├── app/
 │   ├── agents/            # 智能体(graph / state / nodes)
+│   │   └── nodes/
+│   │       └── parallel_init.py  # 并行初始化节点
 │   ├── api/               # API 路由(SSE 流式)
-│   ├── core/              # 配置管理 + LLM/Embedding 实例管理
+│   ├── core/              # 配置管理 + LLM/Embedding + 限流器
+│   │   └── rate_limiter.py      # LLM API 限流器
 │   ├── db/                # 数据库连接
 │   ├── models/            # 数据模型
 │   ├── services/          # 任务队列 + 风险工具
 │   └── static/            # 前端页面
-├── knowledge/             # 心理健康知识库(11 篇 Markdown)
+├── knowledge/             # 心理健康知识库(22 篇 Markdown)
 ├── scripts/               # 初始化工具
 │   ├── init_db.py             # 数据库初始化
 │   ├── ingest_knowledge.py    # 知识库导入(按标题切分 + 去重)
 │   └── download_embedding_model.py # 本地 Embedding 模型下载
 ├── tests/                 # 自动化测试
-│   ├── run_tests.py           # 测试脚本
-│   ├── dataset/               # 测试数据集(JSON,115 条)
+│   ├── run_tests.py           # 功能测试脚本(115 条用例)
+│   ├── load_test.py           # 高并发压测脚本
+│   ├── dataset/               # 测试数据集(JSON)
 │   ├── reports/               # 测试报告输出
 │   └── debug/                 # 调试脚本
 ├── data/                  # 数据目录(不提交到 Git)
@@ -221,13 +249,23 @@ docker exec mindbridge_app python -m scripts.ingest_knowledge --force
 
 ### 运行自动化测试
 
-运行完整测试套件(115 条测试用例):
+运行完整测试套件:
 
 ```bash
 docker exec mindbridge_app python -m tests.run_tests
 ```
 
-测试报告输出到 `tests/reports/` 目录.
+### 运行高并发压测
+
+模拟多用户并发请求,测试系统吞吐量:
+
+```bash
+# 默认梯度压测(5→10→20→30→50 并发,每级 30s)
+docker exec mindbridge_app python -m tests.load_test
+
+# 自定义:固定 30 并发,持续 60 秒
+docker exec mindbridge_app python -m tests.load_test --concurrent 30 --duration 60
+```
 
 ### 运行连通性测试
 
@@ -237,15 +275,27 @@ docker exec mindbridge_app python -m tests.run_tests
 docker exec mindbridge_app python -m tests.debug.test_config
 ```
 
+### 清理 Docker 构建缓存
+
+频繁重建容器会累积构建缓存(可达数 GB):
+
+```bash
+# 安全清理(悬空镜像 + 停止的容器 + 构建缓存)
+docker system prune
+
+# 仅清理构建缓存
+docker builder prune
+```
+
 ## 📖 知识库主题
 
-学业压力与倦怠 · 焦虑与恐慌 · 情绪低落与抑郁 · 校园心理健康资源 · 心理咨询转介 · 风险评估政策 · 人际关系与家庭 · 隐私边界与伦理 · 睡眠与自我关怀 · 适应与过渡期 · 考试季指导
+学业压力与倦怠 · 焦虑与恐慌 · 情绪低落与抑郁 · 校园心理健康资源 · 心理咨询转介 · 风险评估政策 · 人际关系与家庭 · 隐私边界与伦理 · 睡眠与自我关怀 · 适应与过渡期 · 考试季指导 · 自伤危机干预 · 创伤与虐待支持 · 物质滥用与成瘾 · 情绪调节技巧 · 饮食障碍与身体意象 · 社交焦虑与孤独 · 悲伤与失去 · 药物与治疗 · 身份认同与自尊 · 欺凌与骚扰 · 校园求助热线
 
 ## 🔒 数据说明
 
 - 对话记录持久化在 MySQL,向量数据库存储于本地 `data/chroma_db/`
 - 数据一致性由应用层控制,会话不存在时自动创建
-- 日志输出到 `logs/app.log`,同时打印到容器控制台
+- 日志异步写入 `logs/app.log`(QueueHandler),同时打印到容器控制台
 
 ## 🤝 贡献
 

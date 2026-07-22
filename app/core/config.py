@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # 项目基础配置
     project_name: str = "MindBridge 心理测评与智能问答系统"
     api_description: str = "基于 RAG 和异步任务队列的心理健康评估平台"
-    api_version: str = "1.1.0"
+    api_version: str = "1.2.0"
     debug: bool = False
 
     # --- 通用 API 配置 ---

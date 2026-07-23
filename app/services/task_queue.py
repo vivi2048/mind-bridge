@@ -1,6 +1,7 @@
 import json
 import asyncio
 import logging
+from typing import Any
 from redis.asyncio import Redis
 from sqlalchemy import select
 from app.db.session import async_session_factory
@@ -15,10 +16,10 @@ MAX_RETRIES = 3
 
 
 class TaskQueue:
-    def __init__(self, redis_client: Redis):
+    def __init__(self, redis_client: Redis) -> None:
         self.redis = redis_client
 
-    async def enqueue(self, task_type: str, payload: dict):
+    async def enqueue(self, task_type: str, payload: dict[str, Any]) -> None:
         """
         将任务推入 Redis 队列,并在数据库创建初始记录.
         (由 RiskGuardianAgent 调用)
@@ -34,7 +35,7 @@ class TaskQueue:
             await self.redis.rpush(REDIS_QUEUE_KEY, json.dumps({"task_id": task.id}))
             logger.info(f"[TaskQueue] 任务 {task.id} ({task_type}) 已入队")
 
-    async def process_task(self, task_id: int):
+    async def process_task(self, task_id: int) -> None:
         """
         执行单个任务,包含状态更新和重试逻辑.
         """
@@ -79,7 +80,7 @@ class TaskQueue:
 
             await session.commit()
 
-    async def start_worker(self):
+    async def start_worker(self) -> None:
         """
         启动后台 Worker,持续监听 Redis 队列.
         """
@@ -96,5 +97,24 @@ class TaskQueue:
                 await asyncio.sleep(0.1)  # 短暂休眠,避免 CPU 空转
 
 
-global_redis_client = Redis.from_url(settings.redis_url)
-task_queue = TaskQueue(global_redis_client)
+global_redis_client: Redis | None = None
+task_queue: TaskQueue | None = None
+
+
+def init_task_queue() -> TaskQueue:
+    """
+    初始化任务队列(延迟调用,避免 import 时副作用).
+    在 FastAPI lifespan 中调用.
+    """
+    global global_redis_client, task_queue
+    global_redis_client = Redis.from_url(settings.redis_url)
+    task_queue = TaskQueue(global_redis_client)
+    logger.info("[TaskQueue] 任务队列初始化完成")
+    return task_queue
+
+
+def get_task_queue() -> TaskQueue:
+    """获取已初始化的任务队列实例"""
+    if task_queue is None:
+        raise RuntimeError("TaskQueue 未初始化,请先调用 init_task_queue()")
+    return task_queue

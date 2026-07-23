@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from langchain_core.messages import HumanMessage, AIMessage
 from sqlalchemy import select
 
@@ -8,7 +9,7 @@ from app.models.entities import ChatMessage, ChatSession
 logger = logging.getLogger(__name__)
 
 
-async def memory_node(state: dict) -> dict:
+async def memory_node(state: dict[str, Any]) -> dict[str, Any]:
     """
     记忆加载节点:从 MySQL 加载当前会话的历史消息.
     """
@@ -75,7 +76,7 @@ async def memory_node(state: dict) -> dict:
     }
 
 
-async def save_memory_node(state: dict) -> dict:
+async def save_memory_node(state: dict[str, Any]) -> dict[str, Any]:
     """
     记忆保存节点:将本轮最新的对话落盘到 MySQL.
     如果会话不存在,则自动创建.

@@ -1,4 +1,5 @@
 import logging
+from typing import AsyncGenerator
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -18,7 +19,7 @@ class ChatRequest(BaseModel):
 
 # --- 2. 挂载路由 ---
 @router.post("/chat")
-async def chat_endpoint(request: Request, chat_req: ChatRequest):
+async def chat_endpoint(request: Request, chat_req: ChatRequest) -> StreamingResponse:
     """
     对话接口 - 流式响应
     """
@@ -32,14 +33,12 @@ async def chat_endpoint(request: Request, chat_req: ChatRequest):
             "session_id": chat_req.session_id,
             "current_intent": None,
             "risk_level": None,
-            "risk_reason": None,
             "retrieved_context": None,
             "current_user_input": chat_req.message,
-            "_history_count": 0,
-            "token_usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            "_history_count": 0
         }
 
-        async def generate():
+        async def generate() -> AsyncGenerator[str, None]:
             """生成流式响应"""
             total_token_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
             response_text = []  # 累积 AI 回复内容

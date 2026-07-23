@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from typing import Any
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 from app.core.config import settings
@@ -7,7 +8,7 @@ from app.models.entities import Base
 
 
 # 自定义 unraisable hook 来抑制 aiomysql 的垃圾回收警告
-def _suppress_event_loop_closed(unraisable):
+def _suppress_event_loop_closed(unraisable: Any) -> None:
     """抑制 aiomysql 连接在事件循环关闭后的垃圾回收警告"""
     if unraisable.exc_type is RuntimeError and "Event loop is closed" in str(unraisable.exc_value):
         return  # 忽略这个特定的警告
@@ -15,7 +16,7 @@ def _suppress_event_loop_closed(unraisable):
     sys.__unraisablehook__(unraisable)
 
 
-async def init_database():
+async def init_database() -> None:
     """
     异步初始化数据库:
     1. 确保数据库字符集为 utf8mb4(解决中文和 Emoji 存储问题)

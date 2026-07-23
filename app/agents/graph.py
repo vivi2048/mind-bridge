@@ -1,3 +1,4 @@
+from typing import Any
 from langgraph.graph import StateGraph, END
 from app.agents.state import AgentState
 from langgraph.graph.state import CompiledStateGraph
@@ -12,7 +13,7 @@ from app.agents.nodes.counselor import counselor_node
 
 
 class MindBridgeGraph:
-    def __init__(self):
+    def __init__(self) -> None:
         self.graph: CompiledStateGraph = self._build_graph()
 
     @staticmethod
@@ -64,7 +65,7 @@ class MindBridgeGraph:
         # 4. 编译图
         return graph.compile()
 
-    async def run(self, initial_state: dict | AgentState):
+    async def run(self, initial_state: dict[str, Any] | AgentState) -> dict[str, Any]:
         """
         暴露给外部调用的运行接口.
         """

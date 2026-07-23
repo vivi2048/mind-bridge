@@ -20,7 +20,7 @@ BEIJING_TZ = timezone(timedelta(hours=8))
 class BeijingTimeFormatter(logging.Formatter):
     """自定义日志格式器，使用北京时间"""
     
-    def formatTime(self, record, datefmt=None):
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         """使用北京时间格式化时间戳"""
         # 将 UTC 时间戳转换为北京时间
         dt = datetime.fromtimestamp(record.created, BEIJING_TZ)
@@ -33,7 +33,7 @@ _initialized = False
 _queue_listener = None
 
 
-def setup_logging(console_output=True):
+def setup_logging(console_output: bool = True) -> None:
     """
     初始化日志:写入 logs/app.log,可选是否输出到控制台.
     使用异步队列处理日志,避免 I/O 阻塞主线程.

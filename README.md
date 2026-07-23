@@ -77,7 +77,7 @@
 | 关系数据库           | MySQL 8.0 (SQLAlchemy Async)       |
 | 消息队列            | Redis 7 (异步预警任务)                   |
 | Web 框架          | FastAPI + Uvicorn                  |
-| 容器化             | Docker Compose(多 Worker 模式)         |
+| 容器化             | Docker Compose(热重载开发模式)         |
 
 ## ⚡ 性能优化
 
@@ -89,7 +89,7 @@
 | LLM 超时保护 | request_timeout=60s | 防止慢请求无限挂起 |
 | 日志异步化 | QueueHandler + QueueListener | 日志写入不阻塞主线程 |
 | API 限流保护 | 令牌桶限流(80 次/min) + 429 重试 | 防止上游 API 过载 |
-| 多 Worker | Uvicorn 4 Workers | CPU 密集操作并行化 |
+| LLM 预热并行化 | asyncio.gather 并行预热 LLM | 缩短启动时间 |
 | 意图规则匹配 | 关键词优先,LLM 兜底 | ~60% 请求跳过 LLM 调用 |
 
 **压测数据(50 并发):**
@@ -177,7 +177,7 @@ docker-compose up -d --build
 
 应用运行在 <http://localhost:8000>,浏览器访问即可开始对话.
 
-> 💡 **开发模式**:`docker-compose up -d` 自动加载 `docker-compose.override.yml`,代码挂载 + 4 Worker 并行.改代码后需 `docker-compose restart app` 生效.
+> 💡 **开发模式**:`docker-compose up -d` 自动加载 `docker-compose.override.yml`,代码挂载 + 热重载,改代码后自动重启.
 
 ## 📖 API
 

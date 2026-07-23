@@ -2,13 +2,14 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.agents.graph import MindBridgeGraph
 from app.db.session import dispose_engine
-from app.services.task_queue import task_queue, global_redis_client
+from app.services import task_queue as task_queue_module
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.api import chat
@@ -22,7 +23,7 @@ worker_task: asyncio.Task | None = None
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     """
     FastAPI 生命周期管理器.
     用于在应用启动时初始化资源,在关闭时清理资源.
@@ -32,15 +33,18 @@ async def lifespan(_: FastAPI):
     # 将异步 Worker 放入后台任务中运行,避免阻塞 FastAPI 启动
 
     app.state.graph = MindBridgeGraph()
-    worker_task = asyncio.create_task(task_queue.start_worker())
+    tq = task_queue_module.init_task_queue()  # 延迟初始化 Redis 连接
+    worker_task = asyncio.create_task(tq.start_worker())
 
     # LLM API 预热:建立初始连接,避免首次请求慢
     try:
         from app.core.llm import llm_default, llm_creative, llm_balanced
-        # 串行预热所有 LLM 实例,避免并发触发限流
-        await llm_default.ainvoke(["ping"])
-        await llm_creative.ainvoke(["ping"])
-        await llm_balanced.ainvoke(["ping"])
+        # 并行预热所有 LLM 实例,缩短启动时间
+        await asyncio.gather(
+            llm_default.ainvoke(["ping"]),
+            llm_creative.ainvoke(["ping"]),
+            llm_balanced.ainvoke(["ping"]),
+        )
         logger.info("LLM API 预热完成: default, creative, balanced")
     except Exception as e:
         logger.warning(f"LLM API 预热失败(不影响运行): {e}")
@@ -54,7 +58,8 @@ async def lifespan(_: FastAPI):
             await worker_task
         except asyncio.CancelledError:
             pass  # 任务被正常取消,忽略该异常
-    await global_redis_client.close()
+    if task_queue_module.global_redis_client:
+        await task_queue_module.global_redis_client.close()
     await dispose_engine()
 
 
@@ -72,13 +77,13 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/")
-async def root():
+async def root() -> FileResponse:
     """首页 - 返回前端页面"""
     return FileResponse(static_dir / "index.html")
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """
     健康检查接口.
     用于负载均衡器或监控系统探活.

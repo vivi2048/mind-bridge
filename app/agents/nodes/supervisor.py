@@ -1,10 +1,11 @@
 import logging
+from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from app.agents.state import AgentState
 from app.core.llm import llm_default
 from app.core.config import settings
-from app.core.rate_limiter import rate_limit_retry
+from app.agents.nodes.llm_utils import invoke_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ SUPERVISOR_PROMPT = """
 
 # type: ignore[arg-type]
 # 3. 构建 Supervisor 节点函数
-async def supervisor_node(state: AgentState) -> dict:
+async def supervisor_node(state: AgentState) -> dict[str, Any]:
     """
     SupervisorAgent 节点:负责意图识别与路由.
     仅根据当前用户输入分类,不发送完整历史消息以节省 token.
@@ -97,10 +98,8 @@ async def supervisor_node(state: AgentState) -> dict:
 
     try:
         # 调用 LLM 进行意图分类（仅传当前输入,不传历史）
-        # 使用限流器防止触发上游 API 速率限制
-        from app.core.rate_limiter import llm_rate_limiter
-        await llm_rate_limiter.acquire()
-        intent = await chain.ainvoke({"input": current_input})
+        # invoke_with_retry 内部已处理限流 + 429 重试
+        intent = await invoke_with_retry(chain, input=current_input)
         intent = intent.strip().lower()
     except Exception as e:
         logger.error(f"[SupervisorAgent] LLM 意图分类失败: {e}", exc_info=True)

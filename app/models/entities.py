@@ -25,14 +25,6 @@ class RiskLevel(str, enum.Enum):
     CRITICAL = "critical"  # 极高风险,需立即人工介入
 
 
-class AlertStatus(str, enum.Enum):
-    """预警闭环状态"""
-    PENDING = "pending"  # 待发送
-    SENT = "sent"  # 已发送
-    CONFIRMED = "confirmed"  # 已确认接收
-    INTERVENED = "intervened"  # 已人工干预
-
-
 class TaskStatus(str, enum.Enum):
     """异步任务队列状态"""
     PENDING = "pending"  # 等待执行
@@ -40,17 +32,6 @@ class TaskStatus(str, enum.Enum):
     SUCCESS = "success"  # 执行成功
     FAILED = "failed"  # 执行失败
     DEAD_LETTER = "dead_letter"  # 进入死信队列
-
-
-# --- 1. 用户账户表 (学生/咨询师/管理员) ---
-class UserAccount(Base):
-    __tablename__ = "user_accounts"
-
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="用户ID")
-    username = Column(String(50), unique=True, nullable=False, index=True, comment="用户名/学号")
-    hashed_password = Column(String(255), nullable=False, comment="加密后的密码")
-    role = Column(String(20), default="student", nullable=False, comment="角色: student/counselor/admin")
-    created_at = Column(DateTime, default=datetime.now(timezone.utc), comment="创建时间")
 
 
 # --- 2. 对话会话表 (支撑 MemoryAgent) ---
@@ -89,20 +70,7 @@ class RiskEvent(Base):
     created_at = Column(DateTime, default=datetime.now(timezone.utc), comment="触发时间")
 
 
-# --- 5. 预警闭环记录表 ---
-class AlertRecord(Base):
-    __tablename__ = "alert_records"
-
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="预警记录ID")
-    risk_event_id = Column(Integer, nullable=False, comment="关联的风险事件ID")
-    status = Column(SAEnum(AlertStatus), default=AlertStatus.PENDING, nullable=False, comment="预警状态")
-    sent_at = Column(DateTime, nullable=True, comment="发送时间")
-    confirmed_at = Column(DateTime, nullable=True, comment="确认接收时间")
-    intervention_notes = Column(Text, nullable=True, comment="干预备注/处理记录")
-    created_at = Column(DateTime, default=datetime.now(timezone.utc), comment="创建时间")
-
-
-# --- 6. 异步任务队列记录表 (支撑风险工具与死信队列) ---
+# --- 5. 异步任务队列记录表 (支撑风险工具与死信队列) ---
 class AsyncTask(Base):
     __tablename__ = "async_tasks"
 

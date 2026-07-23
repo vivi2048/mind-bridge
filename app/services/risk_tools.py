@@ -15,7 +15,7 @@ class AlertPayload(TypedDict):
     target: str  # 预警目标（辅导员/危机干预中心）,默认为 campus_crisis_center
 
 
-async def send_alert(payload: AlertPayload):
+async def send_alert(payload: AlertPayload) -> None:
     """
     风险预警工具:发送预警通知给辅导员/危机干预中心,并记录风险事件
     """
@@ -52,13 +52,13 @@ async def send_alert(payload: AlertPayload):
             raise  # 向上抛出异常,以便 TaskQueue 捕获并进行重试逻辑
 
 
-async def create_case(payload: AlertPayload):
+async def create_case(payload: AlertPayload) -> None:
     """风险干预工具:创建心理干预个案"""
     logger.info(f"[RiskTools] 干预个案已创建, user_id={payload['user_id']}")
 
 
 # 工具注册表,方便 Worker 动态调用
-RISK_TOOL_REGISTRY = {
+RISK_TOOL_REGISTRY: dict[str, callable] = {
     "send_alert": send_alert,
     "create_case": create_case,
 }

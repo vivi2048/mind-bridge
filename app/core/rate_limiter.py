@@ -1,7 +1,3 @@
-"""
-LLM 请求限流器
-防止高并发下触发上游 API 的速率限制 (429 错误)
-"""
 import asyncio
 import time
 import logging
@@ -18,7 +14,7 @@ class RateLimiter:
     控制 LLM API 调用频率,避免触发 429 错误
     """
     
-    def __init__(self, max_calls: int, period: float):
+    def __init__(self, max_calls: int, period: float) -> None:
         """
         Args:
             max_calls: 时间窗口内最大调用次数
@@ -26,11 +22,11 @@ class RateLimiter:
         """
         self.max_calls = max_calls
         self.period = period
-        self.calls = 0
-        self.reset_time = time.time() + period
+        self.calls: int = 0
+        self.reset_time: float = time.time() + period
         self._lock = asyncio.Lock()
     
-    async def acquire(self):
+    async def acquire(self) -> None:
         """获取调用许可,如果超出限流则等待"""
         async with self._lock:
             now = time.time()
@@ -54,12 +50,10 @@ class RateLimiter:
 
 
 # 全局 LLM 限流器: 80 次/分钟 (留出 47% 缓冲,API 限制 150/分钟)
-# 每个用户请求平均 2-3 次 LLM 调用,80 次/分钟 ≈ 26-40 用户请求/分钟
-# 留足缓冲防止突发流量触发 429
-llm_rate_limiter = RateLimiter(max_calls=80, period=60.0)
+llm_rate_limiter: RateLimiter = RateLimiter(max_calls=80, period=60.0)
 
 
-def rate_limit_retry(max_retries: int = 3, base_delay: float = 2.0):
+def rate_limit_retry(max_retries: int = 2, base_delay: float = 2.0) -> Callable:
     """
     限流重试装饰器
     遇到 429 错误时自动重试,使用指数退避
@@ -68,9 +62,9 @@ def rate_limit_retry(max_retries: int = 3, base_delay: float = 2.0):
         max_retries: 最大重试次数
         base_delay: 基础延迟时间(秒)
     """
-    def decorator(func: Callable):
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             for attempt in range(max_retries + 1):
                 try:
                     # 先获取限流许可

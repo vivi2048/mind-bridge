@@ -19,7 +19,7 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def dispose_engine():
+async def dispose_engine() -> None:
     """
     关闭数据库引擎,释放所有连接资源.
     应在应用关闭时调用.

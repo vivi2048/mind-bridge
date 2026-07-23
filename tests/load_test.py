@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from app.core.config import settings
 from app.core.logging_config import setup_logging
+from tests.utils import generate_session_id, calculate_percentiles, clean_test_data
 
 setup_logging(console_output=False)
 logger = logging.getLogger(__name__)
@@ -54,14 +55,7 @@ class LoadTester:
     def __init__(self, api_url: str = "http://localhost:8000/api/chat"):
         self.api_url = api_url
         self.test_user_id = 1001
-        self.session_counter = 0
         self.results: List[Dict] = []
-        self._csv_lock = asyncio.Lock()
-
-    def get_unique_session_id(self) -> int:
-        """生成唯一的 session_id (900000+ 范围)"""
-        self.session_counter += 1
-        return 900000 + self.session_counter
 
     async def send_streaming_request(
         self, question: str, session_id: int, max_retries: int = 1
@@ -180,7 +174,7 @@ class LoadTester:
 
             while time.time() < end_deadline:
                 question = random.choice(TEST_QUESTIONS)
-                session_id = self.get_unique_session_id()
+                session_id = generate_session_id()
 
                 result = await self.send_streaming_request(question, session_id)
                 result["worker_id"] = worker_id
@@ -196,28 +190,6 @@ class LoadTester:
 
                 # 短暂间隔, 模拟真实用户节奏 (0.5-2s)
                 await asyncio.sleep(random.uniform(0.5, 2.0))
-
-    def _calculate_percentiles(self, data: list) -> Dict[str, float]:
-        """计算百分位数"""
-        if not data:
-            return {"P50": 0, "P90": 0, "P95": 0, "P99": 0}
-
-        sorted_data = sorted(data)
-        n = len(sorted_data)
-
-        def percentile(p):
-            k = (n - 1) * p / 100
-            f = int(k)
-            c = f + 1 if f + 1 < n else f
-            d = k - f
-            return sorted_data[f] + d * (sorted_data[c] - sorted_data[f])
-
-        return {
-            "P50": percentile(50),
-            "P90": percentile(90),
-            "P95": percentile(95),
-            "P99": percentile(99),
-        }
 
     async def run_level(self, concurrency: int, duration: float) -> List[Dict]:
         """运行单个并发级别的压测"""
@@ -268,60 +240,16 @@ class LoadTester:
             total_times = [r["total_time"] for r in success_results]
 
             if first_tokens:
-                ft_pct = self._calculate_percentiles(first_tokens)
+                ft_pct = calculate_percentiles(first_tokens)
                 print(f"    首字延迟: 平均{sum(first_tokens)/len(first_tokens):.2f}s | P50:{ft_pct['P50']:.2f}s | P90:{ft_pct['P90']:.2f}s | P95:{ft_pct['P95']:.2f}s")
 
             if total_times:
-                tt_pct = self._calculate_percentiles(total_times)
+                tt_pct = calculate_percentiles(total_times)
                 print(f"    响应时间: 平均{sum(total_times)/len(total_times):.2f}s | P50:{tt_pct['P50']:.2f}s | P90:{tt_pct['P90']:.2f}s | P95:{tt_pct['P95']:.2f}s")
 
             tokens = [r["token_count"] for r in success_results]
             if tokens:
                 print(f"    Token: 平均{sum(tokens)/len(tokens):.0f}/请求 | 总{sum(tokens)}")
-
-    async def clean_test_data(self):
-        """清理数据库中的测试数据"""
-        if not settings.database_url:
-            print("DATABASE_URL 未配置,跳过数据清理")
-            return
-
-        from sqlalchemy import select, delete
-        from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-        from app.models.entities import ChatSession, ChatMessage, RiskEvent
-
-        try:
-            engine = create_async_engine(settings.database_url, echo=False)
-        except Exception as e:
-            print(f"数据库连接失败,跳过清理: {e}")
-            return
-
-        try:
-            async with AsyncSession(engine) as session:
-                # 清理测试消息
-                msg_result = await session.execute(
-                    select(ChatMessage).where(ChatMessage.session_id >= 900000)
-                )
-                msg_count = len(msg_result.scalars().all())
-                await session.execute(
-                    delete(ChatMessage).where(ChatMessage.session_id >= 900000)
-                )
-
-                # 清理测试会话
-                await session.execute(
-                    delete(ChatSession).where(ChatSession.id >= 900000)
-                )
-
-                # 清理测试风险事件
-                await session.execute(
-                    delete(RiskEvent).where(RiskEvent.session_id >= 900000)
-                )
-
-                await session.commit()
-                logger.info(f"已清理测试数据: 消息{msg_count}条")
-        except Exception as e:
-            logger.error(f"清理测试数据失败: {e}")
-        finally:
-            await engine.dispose()
 
     def save_results(self, output_path: str):
         """保存详细结果到 CSV"""
@@ -371,7 +299,7 @@ async def main():
 
     # 先清理历史测试数据
     print("\n清理历史测试数据...")
-    await tester.clean_test_data()
+    await clean_test_data()
 
     # 逐级执行压测
     all_level_summaries = []
@@ -444,7 +372,7 @@ async def main():
 
     # 清理测试数据
     print("\n清理测试数据...")
-    await tester.clean_test_data()
+    await clean_test_data()
     print("清理完成")
 
 

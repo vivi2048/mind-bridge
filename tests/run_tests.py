@@ -9,7 +9,6 @@ import json
 import time
 import csv
 import logging
-import statistics
 from pathlib import Path
 from datetime import datetime
 from typing import Dict
@@ -20,6 +19,7 @@ from langchain_core.messages import HumanMessage
 
 from app.core.config import settings
 from app.core.logging_config import setup_logging
+from tests.utils import generate_session_id, calculate_percentiles, clean_test_data
 
 setup_logging(console_output=False)  # 测试模式:日志只写入文件,不输出到控制台
 logger = logging.getLogger(__name__)
@@ -31,7 +31,6 @@ class MindBridgeTester:
     def __init__(self):
         self.api_url = "http://localhost:8000/api/chat"
         self.test_user_id = 1001
-        self.session_counter = 0  # 用于生成唯一的 session_id
         self._csv_lock = asyncio.Lock()  # CSV 写入锁,防止并发写入冲突
         
         # 初始化评估LLM
@@ -43,94 +42,6 @@ class MindBridgeTester:
         )
         
         self.results = []
-    
-    def get_unique_session_id(self) -> int:
-        """生成唯一的 session_id"""
-        self.session_counter += 1
-        # 使用 900000+ 作为测试专用范围,避免与真实数据冲突
-        return 900000 + self.session_counter
-    
-    async def clean_test_data(self):
-        """清理数据库中的测试数据(session_id >= 900000)"""
-        from sqlalchemy import select, delete
-        from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-        from app.models.entities import ChatSession, ChatMessage, RiskEvent, AlertRecord, AsyncTask
-        
-        engine = create_async_engine(settings.database_url, echo=False)
-        
-        try:
-            async with AsyncSession(engine) as session:
-                # 1. 清理测试会话及其消息
-                result = await session.execute(
-                    select(ChatSession).where(ChatSession.id >= 900000)
-                )
-                test_sessions = result.scalars().all()
-                session_count = len(test_sessions)
-                
-                # 删除测试会话的消息
-                message_count = 0
-                for s in test_sessions:
-                    msg_result = await session.execute(
-                        select(ChatMessage).where(ChatMessage.session_id == s.id)
-                    )
-                    messages = msg_result.scalars().all()
-                    message_count += len(messages)
-                    
-                    await session.execute(
-                        delete(ChatMessage).where(ChatMessage.session_id == s.id)
-                    )
-                
-                # 删除测试会话本身
-                await session.execute(
-                    delete(ChatSession).where(ChatSession.id >= 900000)
-                )
-                
-                # 2. 清理测试风险事件及其关联的预警记录
-                risk_result = await session.execute(
-                    select(RiskEvent).where(RiskEvent.session_id >= 900000)
-                )
-                risk_events = risk_result.scalars().all()
-                risk_count = len(risk_events)
-                
-                # 删除关联的预警记录
-                alert_count = 0
-                for r in risk_events:
-                    alert_result = await session.execute(
-                        select(AlertRecord).where(AlertRecord.risk_event_id == r.id)
-                    )
-                    alerts = alert_result.scalars().all()
-                    alert_count += len(alerts)
-                    
-                    await session.execute(
-                        delete(AlertRecord).where(AlertRecord.risk_event_id == r.id)
-                    )
-                
-                # 删除测试风险事件
-                await session.execute(
-                    delete(RiskEvent).where(RiskEvent.session_id >= 900000)
-                )
-                
-                # 3. 清理异步任务(通过 payload 中的 session_id 过滤)
-                all_tasks_result = await session.execute(select(AsyncTask))
-                all_tasks = all_tasks_result.scalars().all()
-                task_count = 0
-                
-                for task in all_tasks:
-                    payload = task.payload or {}
-                    task_session_id = payload.get('session_id', 0)
-                    if isinstance(task_session_id, int) and task_session_id >= 900000:
-                        await session.execute(
-                            delete(AsyncTask).where(AsyncTask.id == task.id)
-                        )
-                        task_count += 1
-                
-                await session.commit()
-                
-                logger.info(f"✓ 已清理测试数据: 会话{session_count}个, 消息{message_count}条, 风险事件{risk_count}条, 预警{alert_count}条, 任务{task_count}条")
-        except Exception as e:
-            logger.error(f"清理测试数据失败: {e}", exc_info=True)
-        finally:
-            await engine.dispose()
     
     def parse_test_dataset(self, dataset_path: str) -> Dict:
         """
@@ -370,7 +281,7 @@ class MindBridgeTester:
     async def run_single_test(self, test_case: Dict) -> Dict:
         """运行单个测试用例"""
         # 为每个测试生成唯一的 session_id,避免上下文污染
-        session_id = self.get_unique_session_id()
+        session_id = generate_session_id()
         
         print(f"\n[{test_case['id']}] {test_case['question'][:40]}... (session: {session_id})")
         
@@ -430,7 +341,7 @@ class MindBridgeTester:
         
         # 0. 清理数据库中的测试数据
         print("\n清理历史测试数据...")
-        await self.clean_test_data()
+        await clean_test_data()
         
         # 1. 加载测试数据集(JSON)
         dataset = self.parse_test_dataset(dataset_path)
@@ -451,9 +362,8 @@ class MindBridgeTester:
         print("=" * 60)
         
         # 使用信号量控制并发数,避免API过载
-        # 注意:每个测试内部会发起多个LLM调用(supervisor/memory/knowledge/counselor等)
-        # 并发数3比较合适,既能加速又不会过载
-        concurrency = 3
+        # 每个测试内部会发起多个LLM调用(supervisor/memory/knowledge/counselor等)
+        concurrency = 5
         semaphore = asyncio.Semaphore(concurrency)
         single_turn_pbar = tqdm(total=len(single_turn_tests), desc="单轮测试", unit="条",
                                  bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]')
@@ -494,8 +404,7 @@ class MindBridgeTester:
                                 bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]')
         
         # 使用信号量控制场景并发数
-        # 改为串行执行(1个场景)，确保进度条显示清晰
-        scene_semaphore = asyncio.Semaphore(1)
+        scene_semaphore = asyncio.Semaphore(3)
         
         async def run_scene(scene):
             async with scene_semaphore:
@@ -504,7 +413,7 @@ class MindBridgeTester:
                 turns = scene["turns"]
                 
                 # 为整个场景分配一个 session_id
-                scene_session_id = self.get_unique_session_id()
+                scene_session_id = generate_session_id()
                 multi_turn_pbar.set_description(f"多轮-{scene_name[:8]}")
                 
                 for turn_idx, turn in enumerate(turns, 1):
@@ -629,32 +538,6 @@ class MindBridgeTester:
                 writer = csv.DictWriter(f, fieldnames=self._get_fieldnames())
                 writer.writerow(row)
     
-    def generate_csv_report(self, output_path: str):
-        """生成 CSV 格式的测试报告(兼容旧调用)"""
-        print(f"\n✓ 测试报告已保存至: {output_path}(共 {len(self.results)} 条)")
-    
-    def _calculate_percentiles(self, data: list) -> Dict[str, float]:
-        """计算百分位数 (P50, P90, P95, P99)"""
-        if not data:
-            return {"P50": 0, "P90": 0, "P95": 0, "P99": 0}
-        
-        sorted_data = sorted(data)
-        n = len(sorted_data)
-        
-        def percentile(p):
-            k = (n - 1) * p / 100
-            f = int(k)
-            c = f + 1 if f + 1 < n else f
-            d = k - f
-            return sorted_data[f] + d * (sorted_data[c] - sorted_data[f])
-        
-        return {
-            "P50": percentile(50),
-            "P90": percentile(90),
-            "P95": percentile(95),
-            "P99": percentile(99)
-        }
-    
     def _is_outlier(self, result: dict) -> bool:
         """
         判断测试结果是否为异常数据.
@@ -724,11 +607,11 @@ class MindBridgeTester:
         times = [float(r['total_time'].rstrip('s')) for r in valid_results]
         
         if latencies:
-            latency_percentiles = self._calculate_percentiles(latencies)
+            latency_percentiles = calculate_percentiles(latencies)
             log_and_collect(f"\n首字延迟: 平均{sum(latencies)/len(latencies):.2f}s | P50:{latency_percentiles['P50']:.2f}s | P90:{latency_percentiles['P90']:.2f}s | P95:{latency_percentiles['P95']:.2f}s")
         
         if times:
-            time_percentiles = self._calculate_percentiles(times)
+            time_percentiles = calculate_percentiles(times)
             log_and_collect(f"响应时间: 平均{sum(times)/len(times):.2f}s | P50:{time_percentiles['P50']:.2f}s | P90:{time_percentiles['P90']:.2f}s | P95:{time_percentiles['P95']:.2f}s")
         
         # Token 消耗统计（仅使用有效数据）

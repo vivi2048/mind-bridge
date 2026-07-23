@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated, List, Literal, Optional, Dict
+from typing import TypedDict, Annotated, List, Literal, Optional
 
 from langgraph.graph.message import add_messages
 
@@ -19,7 +19,6 @@ class AgentState(TypedDict):
 
     # 4. 风险评估信息 (由 RiskGuardianAgent 写入)
     risk_level: Optional[str]
-    risk_reason: Optional[str]
 
     # 5. 检索到的知识上下文 (由 KnowledgeAgent 写入)
     retrieved_context: Optional[str]
@@ -29,6 +28,3 @@ class AgentState(TypedDict):
 
     # 7. 历史消息计数 (由 MemoryAgent 写入,供 SaveMemoryAgent 使用)
     _history_count: int
-
-    # 8. Token 使用统计 (累积所有 LLM 调用的 token 消耗)
-    token_usage: Optional[Dict[str, int]]

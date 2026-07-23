@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Any
 from app.agents.state import AgentState
 from app.agents.nodes.supervisor import supervisor_node
 from app.agents.nodes.memory import memory_node
@@ -7,7 +8,7 @@ from app.agents.nodes.memory import memory_node
 logger = logging.getLogger(__name__)
 
 
-async def parallel_init_node(state: AgentState) -> dict:
+async def parallel_init_node(state: AgentState) -> dict[str, Any]:
     """
     并行初始化节点:同时执行意图识别(supervisor)和历史加载(memory).
     这两个操作无数据依赖,可并行执行以节省约 30% 响应时间.

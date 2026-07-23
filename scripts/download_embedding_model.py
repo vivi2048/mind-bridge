@@ -14,7 +14,8 @@
 import sys
 from pathlib import Path
 
-def main():
+
+def main() -> None:
     try:
         from modelscope import snapshot_download
     except ImportError:

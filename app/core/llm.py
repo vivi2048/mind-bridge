@@ -23,6 +23,6 @@ def create_llm(temperature: float = 0) -> ChatOpenAI:
 
 
 # 预创建的常用 LLM 实例
-llm_default = create_llm(temperature=0)      # 确定性输出(分类、评估)
-llm_creative = create_llm(temperature=0.7)   # 创意输出(对话、陪伴)
-llm_balanced = create_llm(temperature=0.5)   # 平衡输出(咨询、建议)
+llm_default: ChatOpenAI = create_llm(temperature=0)      # 确定性输出(分类、评估)
+llm_creative: ChatOpenAI = create_llm(temperature=0.7)   # 创意输出(对话、陪伴)
+llm_balanced: ChatOpenAI = create_llm(temperature=0.5)   # 平衡输出(咨询、建议)

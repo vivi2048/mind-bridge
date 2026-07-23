@@ -14,10 +14,9 @@ async def test_conversation(user_input: str):
     initial_state = {
         "messages": [],
         "user_id": 1001,
-        "session_id": 999999,  # 测试专用 session_id
+        "session_id": 999999,
         "current_intent": None,
         "risk_level": None,
-        "risk_reason": None,
         "retrieved_context": None,
         "current_user_input": user_input,
         "_history_count": 0

@@ -1,7 +1,8 @@
-from app.agents.nodes.knowledge import vectorstore
+from app.agents.nodes.knowledge import _get_vectorstore
 
 # 直接用一段测试文本查询
 test_query = "大学生压力管理"
+vectorstore = _get_vectorstore()
 docs = vectorstore.similarity_search(test_query, k=3)
 
 print(f"查询: {test_query}")

@@ -26,7 +26,7 @@ def check_chroma_exists() -> bool:
 
 def load_markdown_files(directory: Path) -> list[Document]:
     """简单加载目录下所有 Markdown 文件"""
-    documents = []
+    documents: list[Document] = []
     for md_file in directory.glob("**/*.md"):
         content = md_file.read_text(encoding="utf-8")
         documents.append(Document(
@@ -36,7 +36,7 @@ def load_markdown_files(directory: Path) -> list[Document]:
     return documents
 
 
-def ingest_documents(force: bool = False):
+def ingest_documents(force: bool = False) -> None:
     """
     导入知识文档到向量数据库
     

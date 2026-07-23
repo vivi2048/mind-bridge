@@ -25,17 +25,12 @@ class Settings(BaseSettings):
     embedding_base_url: str = ""      # 仅 api 模式
     embedding_api_key: str = ""       # 仅 api 模式
     embedding_cache_dir: str = "./data/embedding_models"
-    embedding_timeout_seconds: int = 30
 
     # --- 数据库与缓存 ---
     database_url: str = ""
     redis_url: str = ""
 
     # --- 其他配置 ---
-    alert_email_delivery_mode: str = "log"
-    excel_path: str = "./data/excel_ledger/risk_ledger.xlsx"
-    worker_poll_interval: int = 5
-    max_task_attempts: int = 3
     force_rag: bool = False  # 测试用:强制所有请求触发 RAG
 
     # --- 向量数据库 ---
@@ -52,7 +47,8 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
+    """获取全局配置单例"""
     return Settings()
 
 
-settings = get_settings()
+settings: Settings = get_settings()

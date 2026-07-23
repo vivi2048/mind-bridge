@@ -522,6 +522,11 @@ class MindBridgeTester:
         
         # 生成统计摘要
         self.generate_summary()
+        
+        # 清理测试数据
+        print("\n清理测试数据...")
+        await clean_test_data()
+        print("清理完成")
     
     def _get_fieldnames(self):
         return [

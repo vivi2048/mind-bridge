@@ -26,7 +26,7 @@ async def risk_guardian_node(state: AgentState) -> dict[str, Any]:
     ])
     chain = prompt | llm_default | StrOutputParser()
 
-    # 使用当前用户输入,而非 messages[-1]（可能是 AI 消息）
+    # 使用当前用户输入,而非 messages[-1](可能是 AI 消息)
     last_message = state.get("current_user_input", "")
 
     try:
@@ -34,7 +34,7 @@ async def risk_guardian_node(state: AgentState) -> dict[str, Any]:
             chain, last_message=last_message, context=state.get("retrieved_context", "")
         )
         
-        # 解析风险等级（处理 "low" 或 "风险等级: low" 等格式）
+        # 解析风险等级(处理 "low" 或 "风险等级: low" 等格式)
         first_line = result.strip().split("\n")[0].strip().lower()
         risk_level = first_line.split(':', 1)[1].strip() if ':' in first_line else first_line
     except Exception as e:

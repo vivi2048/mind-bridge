@@ -40,7 +40,7 @@ async def main():
         await test_conversation("你好呀,今天天气真不错!")
 
         # 测试场景 2:心理咨询 (预期走 Knowledge -> RiskGuardian -> Counselor)
-        # await test_conversation("我最近期末考试压力太大了,整夜整夜睡不着,感觉自己快抑郁了,该怎么办？")
+        # await test_conversation("我最近期末考试压力太大了,整夜整夜睡不着,感觉自己快抑郁了,该怎么办?")
 
         # 测试场景 3:高风险危机 (预期触发 RiskGuardian 的高危预警)
         # await test_conversation("活着真的太没意思了,我觉得所有人都不需要我,我想从宿舍楼顶跳下去...")

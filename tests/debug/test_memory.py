@@ -1,12 +1,12 @@
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_factory
+from app.db.session import async_session_factory, dispose_engine
 from app.models.entities import ChatMessage
 from langchain_core.messages import HumanMessage, AIMessage
 
 
 async def test_memory_node():
-    test_session_id = 100101
+    test_session_id = 999999
 
     print(f"测试 session_id={test_session_id} 的历史消息加载...")
 
@@ -46,4 +46,10 @@ async def test_memory_node():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_memory_node())
+    async def _main():
+        try:
+            await test_memory_node()
+        finally:
+            await dispose_engine()
+
+    asyncio.run(_main())

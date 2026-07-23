@@ -252,7 +252,11 @@ docker exec mindbridge_app python -m scripts.ingest_knowledge --force
 运行完整测试套件:
 
 ```bash
+# 运行全部测试
 docker exec mindbridge_app python -m tests.run_tests
+
+# 限制测试数量(快速验证)
+docker exec mindbridge_app python -m tests.run_tests --limit 5
 ```
 
 ### 运行高并发压测
@@ -265,14 +269,27 @@ docker exec mindbridge_app python -m tests.load_test
 
 # 自定义:固定 30 并发,持续 60 秒
 docker exec mindbridge_app python -m tests.load_test --concurrent 30 --duration 60
+
+# 自定义梯度级别
+docker exec mindbridge_app python -m tests.load_test --levels "10,30,50,80" --duration 45
 ```
 
 ### 运行连通性测试
 
-测试 MySQL、Redis、LLM、Embedding 的连接状态:
+测试各模块连通性:
 
 ```bash
-docker exec mindbridge_app python -m tests.debug.test_config
+# 系统连通性(MySQL、Redis、LLM、Embedding)
+docker exec mindbridge_app python tests/debug/test_config.py
+
+# Graph 工作流测试
+docker exec mindbridge_app python tests/debug/test_graph.py
+
+# 记忆加载测试
+docker exec mindbridge_app python tests/debug/test_memory.py
+
+# 知识库检索测试
+docker exec mindbridge_app python tests/debug/test_knowledge_node.py
 ```
 
 ### 清理 Docker 构建缓存

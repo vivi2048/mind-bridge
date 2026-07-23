@@ -51,17 +51,21 @@ def ingest_documents(force: bool = False) -> None:
     
     if force:
         print("强制重建知识库,清除旧数据...")
-        # 直接删除整个持久化目录,避免 delete_collection() 遗留孤儿索引文件
+        # 删除目录内的所有内容(保留目录本身,兼容 Docker 卷挂载)
         if CHROMA_PERSIST_DIR.exists():
             try:
-                shutil.rmtree(CHROMA_PERSIST_DIR)
-                print(f"  已删除旧数据库目录: {CHROMA_PERSIST_DIR}")
+                for item in CHROMA_PERSIST_DIR.iterdir():
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+                print(f"  已清除旧数据库内容: {CHROMA_PERSIST_DIR}")
             except PermissionError:
-                print(f"  错误: 无法删除 {CHROMA_PERSIST_DIR},可能被其他进程占用.")
-                print("  请关闭占用该目录的进程后重试,或手动删除该目录.")
+                print(f"  错误: 无法删除 {CHROMA_PERSIST_DIR} 内的文件,可能被其他进程占用.")
+                print("  请关闭占用该目录的进程后重试.")
                 return
             except OSError as e:
-                print(f"  错误: 删除目录失败: {e}")
+                print(f"  错误: 删除文件失败: {e}")
                 return
     
     if not KNOWLEDGE_DIR.exists():

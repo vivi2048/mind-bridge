@@ -18,7 +18,7 @@ BEIJING_TZ = timezone(timedelta(hours=8))
 
 
 class BeijingTimeFormatter(logging.Formatter):
-    """自定义日志格式器，使用北京时间"""
+    """自定义日志格式器,使用北京时间"""
     
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         """使用北京时间格式化时间戳"""

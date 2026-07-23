@@ -39,7 +39,7 @@ def create_embeddings() -> Embeddings:
 
 def _create_local_embeddings() -> Embeddings:
     """本地加载 HuggingFace / SentenceTransformer 模型"""
-    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_huggingface import HuggingFaceEmbeddings
 
     # 设置模型缓存目录
     if settings.embedding_cache_dir:

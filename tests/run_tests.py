@@ -5,6 +5,7 @@ MindBridge 自动化测试脚本
 """
 
 import asyncio
+import argparse
 import json
 import time
 import csv
@@ -333,7 +334,7 @@ class MindBridgeTester:
         
         return result
     
-    async def run_all_tests(self, dataset_path: str, output_path: str):
+    async def run_all_tests(self, dataset_path: str, output_path: str, limit: int = 0):
         """运行所有测试并生成报告"""
         print("=" * 60)
         print("MindBridge 自动化测试")
@@ -347,10 +348,18 @@ class MindBridgeTester:
         dataset = self.parse_test_dataset(dataset_path)
         single_turn_tests = dataset["single_turn"]
         multi_turn_scenes = dataset["multi_turn"]
+        
+        # 应用数量限制
+        if limit > 0:
+            single_turn_tests = single_turn_tests[:limit]
+            multi_turn_scenes = multi_turn_scenes[:limit]
+        
         multi_turn_total = sum(len(s["turns"]) for s in multi_turn_scenes)
         
         print(f"\n加载了 {len(single_turn_tests) + multi_turn_total} 个测试用例")
         print(f"  单轮: {len(single_turn_tests)} 条 | 多轮: {len(multi_turn_scenes)} 场景 {multi_turn_total} 条")
+        if limit > 0:
+            print(f"  (限制: 每类最多 {limit} 条)")
         
         # 初始化 CSV 文件(写入表头)
         self.output_path = output_path
@@ -531,7 +540,7 @@ class MindBridgeTester:
         print(f"\n✓ 报告文件已创建: {self.output_path}(逐条写入模式)")
     
     async def _append_csv_row(self, result: dict):
-        """逐条追加一行到 CSV（带锁，防止并发写入冲突）"""
+        """逐条追加一行到 CSV(带锁,防止并发写入冲突)"""
         row = {k: result.get(k, '') for k in self._get_fieldnames()}
         async with self._csv_lock:
             with open(self.output_path, 'a', encoding='utf-8-sig', newline='') as f:
@@ -544,8 +553,8 @@ class MindBridgeTester:
         
         异常数据标准:
         1. 测试失败 (success=False)
-        2. 响应时间 > 60秒（API延迟波动,正常LLM调用需15-25s）
-        3. 首字延迟 > 20秒（异常情况,正常首字需5-15s）
+        2. 响应时间 > 60秒(API延迟波动,正常LLM调用需15-25s)
+        3. 首字延迟 > 20秒(异常情况,正常首字需5-15s)
         """
         if not result.get('success'):
             return True
@@ -567,7 +576,7 @@ class MindBridgeTester:
         return False
     
     def generate_summary(self):
-        """生成测试统计摘要（同时输出到控制台和文件）"""
+        """生成测试统计摘要(同时输出到控制台和文件)"""
         lines = []
         
         def log_and_collect(msg):
@@ -594,15 +603,15 @@ class MindBridgeTester:
         log_and_collect(f"失败: {total - success}")
         log_and_collect(f"成功率: {success/total*100:.1f}%")
         log_and_collect(f"\n有效数据: {len(valid_results)} 条")
-        log_and_collect(f"异常数据: {outlier_count} 条（已从统计中排除）")
+        log_and_collect(f"异常数据: {outlier_count} 条(已从统计中排除)")
         
         if outlier_count > 0:
             outliers = [r for r in self.results if self._is_outlier(r)]
             outlier_ids = ", ".join(r.get('id', '?') for r in outliers[:5])
             extra = f" ...等共{outlier_count}条" if outlier_count > 5 else ""
-            log_and_collect(f"异常数据: {outlier_count} 条（{outlier_ids}{extra}）")
+            log_and_collect(f"异常数据: {outlier_count} 条({outlier_ids}{extra})")
         
-        # 性能统计（仅使用有效数据）
+        # 性能统计(仅使用有效数据)
         latencies = [float(r['first_token_latency'].rstrip('s')) for r in valid_results]
         times = [float(r['total_time'].rstrip('s')) for r in valid_results]
         
@@ -614,7 +623,7 @@ class MindBridgeTester:
             time_percentiles = calculate_percentiles(times)
             log_and_collect(f"响应时间: 平均{sum(times)/len(times):.2f}s | P50:{time_percentiles['P50']:.2f}s | P90:{time_percentiles['P90']:.2f}s | P95:{time_percentiles['P95']:.2f}s")
         
-        # Token 消耗统计（仅使用有效数据）
+        # Token 消耗统计(仅使用有效数据)
         input_tokens_list = [r.get('input_tokens', 0) for r in valid_results]
         output_tokens_list = [r.get('output_tokens', 0) for r in valid_results]
         total_tokens_list = [r.get('total_tokens', 0) for r in valid_results]
@@ -622,7 +631,7 @@ class MindBridgeTester:
         if total_tokens_list and any(t > 0 for t in total_tokens_list):
             log_and_collect(f"\nToken 消耗: 输入{sum(input_tokens_list)}(均{sum(input_tokens_list)/len(input_tokens_list):.0f}) | 输出{sum(output_tokens_list)}(均{sum(output_tokens_list)/len(output_tokens_list):.0f}) | 总计{sum(total_tokens_list)}")
         
-        # 质量统计（仅使用有效数据）
+        # 质量统计(仅使用有效数据)
         factual_scores = [r['factual_accuracy'] for r in valid_results]
         quality_scores = [r['quality_score'] for r in valid_results if r['quality_score'].isdigit()]
         
@@ -634,7 +643,7 @@ class MindBridgeTester:
             avg_quality = sum(int(s) for s in quality_scores) / len(quality_scores)
             log_and_collect(f"回答质量: {avg_quality:.1f}/5")
         
-        # 安全合规统计(仅危机识别类，且仅使用有效数据)
+        # 安全合规统计(仅危机识别类,且仅使用有效数据)
         crisis_tests = [r for r in valid_results if '危机' in r.get('category', '')]
         if crisis_tests:
             safety_pass = sum(1 for r in crisis_tests if r.get('safety_compliance') == '通过')
@@ -649,12 +658,17 @@ class MindBridgeTester:
 
 async def main():
     """主函数"""
+    parser = argparse.ArgumentParser(description="MindBridge 自动化测试")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="限制测试数量 (0=全部运行)")
+    args = parser.parse_args()
+    
     tester = MindBridgeTester()
     
     dataset_path = "tests/dataset/test_dataset.json"
     output_path = f"tests/reports/test_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     
-    await tester.run_all_tests(dataset_path, output_path)
+    await tester.run_all_tests(dataset_path, output_path, limit=args.limit)
 
 
 if __name__ == "__main__":

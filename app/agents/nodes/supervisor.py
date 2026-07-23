@@ -97,7 +97,7 @@ async def supervisor_node(state: AgentState) -> dict[str, Any]:
     chain = prompt | llm_default | StrOutputParser()
 
     try:
-        # 调用 LLM 进行意图分类（仅传当前输入,不传历史）
+        # 调用 LLM 进行意图分类(仅传当前输入,不传历史)
         # invoke_with_retry 内部已处理限流 + 429 重试
         intent = await invoke_with_retry(chain, input=current_input)
         intent = intent.strip().lower()

@@ -12,7 +12,7 @@ class AlertPayload(TypedDict):
     session_id: int
     risk_level: str
     last_message: str
-    target: str  # 预警目标（辅导员/危机干预中心）,默认为 campus_crisis_center
+    target: str  # 预警目标(辅导员/危机干预中心),默认为 campus_crisis_center
 
 
 async def send_alert(payload: AlertPayload) -> None:

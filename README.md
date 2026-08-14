@@ -1,5 +1,5 @@
 <div align="center">
-  <h2>MindBridge — 校园心理健康智能问答系统</h2>
+  <h2>🧠 MindBridge — 校园心理健康智能问答系统</h2>
   <p>基于 LangGraph 多智能体的 AI 心理陪伴与危机预警平台</p>
 </div>
 
@@ -14,7 +14,7 @@
 
 ---
 
-## ✨ 功能
+## 功能
 
 |          |                               |
 |----------|-------------------------------|
@@ -27,15 +27,15 @@
 | **前端界面** | 开箱即用的 Web 聊天页面,支持 Markdown 渲染        |
 | **异步任务** | Redis 任务队列,支持死信重试与预警闭环        |
 
-## 🏗️ 架构
+## 架构
 
 ```
                         ┌─────────────┐
-                        │  用户输入    │
+                        │   用户输入   │
                         └──────┬──────┘
                                ▼
                 ┌──────────────────────────────┐
-                │  ⚡ Parallel Init (并行执行)   │
+                │    Parallel Init (并行执行)   │
                 │  ┌──────────┐ ┌───────────┐  │
                 │  │Supervisor│ │  Memory   │  │
                 │  │ 意图分类  │ │ 加载历史   │  │
@@ -47,25 +47,25 @@
                chat  │                 consult / risk
                    ▼                       ▼
          ┌──────────────┐       ┌─────────────────┐
-         │ 🫂 Companion  │       │ 📚 Knowledge Node│ ← RAG 检索(异步)
+         │   Companion   │       │  Knowledge Node │ ← RAG 检索(异步)
          └──────┬───────┘       └───────┬─────────┘
                 │                       ▼
                 │             ┌──────────────────┐
-                │             │ 🛡️ Risk Guardian  │ ← 风险评估
+                │             │  Risk Guardian    │ ← 风险评估
                 │             └───────┬──────────┘
                 │                     ▼
                 │             ┌──────────────────┐
-                │             │ 🧑‍⚕️ Counselor Node │ ← 专业回复
+                │             │  Counselor Node   │ ← 专业回复
                 │             └───────┬──────────┘
                 │                     │
                 └─────────┬───────────┘
                           ▼
                 ┌──────────────────┐
-                │ 💾 Save Memory    │ → 持久化
+                │   Save Memory     │ → 持久化
                 └──────────────────┘
 ```
 
-## 🛠️ 技术栈
+## 技术栈
 
 **LangGraph** · **FastAPI** · **ChromaDB** · **MySQL 8.0** · **Redis 7** · **Docker Compose**
 
@@ -79,7 +79,7 @@
 | Web 框架          | FastAPI + Uvicorn                  |
 | 容器化             | Docker Compose(热重载开发模式)         |
 
-## ⚡ 性能优化
+## 性能优化
 
 | 优化项 | 措施 | 效果 |
 |---|---|---|
@@ -103,7 +103,7 @@
 
 > 当前瓶颈为 LLM API 限流(150 次/min),应用层已无瓶颈.
 
-## 🚀 快速开始
+## 快速开始
 
 ### 环境要求
 
@@ -139,7 +139,7 @@ cp .env.example .env
 - **API 模式**:填写 `EMBEDDING_BASE_URL`、`EMBEDDING_API_KEY`、`EMBEDDING_MODEL_ID`(如 `text-embedding-v3`)
 
 <details>
-<summary>📥 本地 Embedding 模型下载(仅 local 模式需要)</summary>
+<summary>本地 Embedding 模型下载(仅 local 模式需要)</summary>
 
 运行一键下载脚本:
 
@@ -161,11 +161,11 @@ EMBEDDING_CACHE_DIR=./data/embedding_models
 docker-compose up -d --build
 ```
 
-> 💡 模型约 1.3GB,首次下载需要几分钟.下载失败时脚本会提供 HuggingFace 镜像备选方案.
+> 模型约 1.3GB,首次下载需要几分钟.下载失败时脚本会提供 HuggingFace 镜像备选方案.
 
 </details>
 
-> 💡 Docker 环境下 `DATABASE_URL` 和 `REDIS_URL` 由 docker-compose 自动注入,无需手动配置.主机运行测试脚本时需在 `.env` 中配置(参见 `.env.example`).
+> Docker 环境下 `DATABASE_URL` 和 `REDIS_URL` 由 docker-compose 自动注入,无需手动配置.主机运行测试脚本时需在 `.env` 中配置(参见 `.env.example`).
 
 ### 3. 一键启动
 
@@ -177,9 +177,9 @@ docker-compose up -d --build
 
 应用运行在 <http://localhost:8000>,浏览器访问即可开始对话.
 
-> 💡 **开发模式**:`docker-compose up -d` 自动加载 `docker-compose.override.yml`,代码挂载 + 热重载,改代码后自动重启.
+> **开发模式**:`docker-compose up -d` 自动加载 `docker-compose.override.yml`,代码挂载 + 热重载,改代码后自动重启.
 
-## 📖 API
+## API
 
 ### POST `/api/chat` — 流式对话
 
@@ -205,7 +205,7 @@ data: {"type": "done", "risk_level": "low"}
 | `done`  | 完成信号 + 风险等级 |
 | `error` | 错误信息        |
 
-## 📁 项目结构
+## 项目结构
 
 ```
 mind-bridge/
@@ -237,7 +237,7 @@ mind-bridge/
 └── logs/                  # 应用日志
 ```
 
-## 🛠️ 常用命令
+## 常用命令
 
 ### 重建知识库
 
@@ -304,21 +304,21 @@ docker system prune
 docker builder prune
 ```
 
-## 📖 知识库主题
+## 知识库主题
 
 学业压力与倦怠 · 焦虑与恐慌 · 情绪低落与抑郁 · 校园心理健康资源 · 心理咨询转介 · 风险评估政策 · 人际关系与家庭 · 隐私边界与伦理 · 睡眠与自我关怀 · 适应与过渡期 · 考试季指导 · 自伤危机干预 · 创伤与虐待支持 · 物质滥用与成瘾 · 情绪调节技巧 · 饮食障碍与身体意象 · 社交焦虑与孤独 · 悲伤与失去 · 药物与治疗 · 身份认同与自尊 · 欺凌与骚扰 · 校园求助热线
 
-## 🔒 数据说明
+## 数据说明
 
 - 对话记录持久化在 MySQL,向量数据库存储于本地 `data/chroma_db/`
 - 数据一致性由应用层控制,会话不存在时自动创建
 - 日志异步写入 `logs/app.log`(QueueHandler),同时打印到容器控制台
 
-## 🤝 贡献
+## 贡献
 
 欢迎提交 Issue 和 Pull Request.
 
-## 📄 许可证
+## 许可证
 
 [MIT License](LICENSE)
 
